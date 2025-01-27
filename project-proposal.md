@@ -1,11 +1,11 @@
 # computing-at-scale-2025-SB-Final-Project
-## ** Contents ** 
+## Contents  
 1. Project Summary
 2. Background
 3. Implementation
 4. Review Process
 5. Final Submission
-
+6. References
 ## Project Summary
 The objective of this project is to design, build, and test software in C++ to design spacecraft trajectory for interplanetary transfer for low-thrust spacecraft. The software produced will be similar in main-functionality to NASA's General Mission Analysis Tool (GMAT), but provide a simplified approach to model trajectory. Time-optimal interplanetary transfers will be evaluated using a 'shooting' algorithm and numerical integration to determine the nominal trajectory and a bundle of trajectories perturbed from the nominal trajectory. Additionally, a user of the software will be able to introduce trajectory anomalies into trajectory design to see how these influence the final position of the spacecraft. 
 ## Background
@@ -15,4 +15,7 @@ To implement this, I plan to build a software suite that includes the residual f
 ## Review Process
 Using either STK or previously solved transfers, I will use test cases to check the accuracy of my software to see if control states, time of flight, and the trajectories generated match what is expected. 
 ## Submission
-I plan to submit my repository to the Journal of Open Source Software.   
+I plan to submit my repository to the Journal of Open Source Software.
+## References
+1. [Background on Applications/Research](https://www.nature.com/articles/s41598-022-22730-y)
+2. [GMAT Software](https://software.nasa.gov/software/GSC-18094-1)   
