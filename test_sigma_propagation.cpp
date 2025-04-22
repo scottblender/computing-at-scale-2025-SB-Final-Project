@@ -11,7 +11,7 @@
 
 using namespace Catch::Matchers;
 
-TEST_CASE("Sigma point propagation returns expected trajectory sizes", "[propagation]") {
+TEST_CASE("Sigma point propagation returns expected trajectory sizes and time history", "[propagation]") {
     Kokkos::initialize();
 
     {
@@ -19,7 +19,7 @@ TEST_CASE("Sigma point propagation returns expected trajectory sizes", "[propaga
         const int num_sigma = 3;
         const int num_steps = 2;
 
-        std::vector<double> time = {0.0, 10.0};
+        std::vector<double> time = {0.0, 10.0};  // t0 and t1
         std::vector<double> Wm = {0.5, 0.25, 0.25};
         std::vector<double> Wc = {0.5, 0.25, 0.25};
 
@@ -37,6 +37,7 @@ TEST_CASE("Sigma point propagation returns expected trajectory sizes", "[propaga
         settings.control_size = 7;
 
         const int num_storage_steps = (num_steps - 1) * (settings.num_eval_per_step + 1);
+        const double dt = (time[1] - time[0]) / settings.num_eval_per_step;
 
         Kokkos::View<double****> trajectories_out("trajectories_out", 
             num_bundles, 
@@ -45,7 +46,12 @@ TEST_CASE("Sigma point propagation returns expected trajectory sizes", "[propaga
             7
         );
 
-        // Fill dummy sigma points
+        // Optional: Store time separately
+        std::vector<double> time_history(num_storage_steps);
+        for (int i = 0; i < num_storage_steps; ++i)
+            time_history[i] = time[0] + i * dt;
+
+        // Fill dummy values
         Kokkos::parallel_for("init_sigmas", num_bundles * num_sigma * 7 * num_steps, KOKKOS_LAMBDA(int idx) {
             int i = idx / (num_sigma * 7 * num_steps);
             int j = (idx / (7 * num_steps)) % num_sigma;
@@ -71,7 +77,14 @@ TEST_CASE("Sigma point propagation returns expected trajectory sizes", "[propaga
         REQUIRE(host_traj.extent(2) == num_storage_steps);
         REQUIRE(host_traj.extent(3) == 7);
 
-        CHECK_THAT(host_traj(0, 0, 0, 0), WithinAbs(0.0, 1e2));
+        // Time history validation
+        for (int n = 0; n < num_storage_steps; ++n) {
+            double expected_time = time[0] + n * dt;
+            CHECK_THAT(time_history[n], WithinAbs(expected_time, 1e-10));
+        }
+
+        // Value structural test
+        CHECK_THAT(host_traj(0, 0, 0, 0), WithinAbs(0.0, 1e2));  // position x at first step
     }
 
     Kokkos::finalize();
