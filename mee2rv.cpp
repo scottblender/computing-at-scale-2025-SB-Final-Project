@@ -12,18 +12,17 @@ void mee2rv(
     std::vector<Eigen::Vector3d>& r_eci,
     std::vector<Eigen::Vector3d>& v_eci
 ) {
-    int N = p.size();  // assume all inputs have same length
+    const int N = p.size();
     r_eci.resize(N);
     v_eci.resize(N);
 
     for (int i = 0; i < N; ++i) {
-        double radius = p[i] / (1 + f[i] * std::cos(L[i]) + g[i] * std::sin(L[i]));
-
-        double alpha2 = h[i] * h[i] - k[i] * k[i];
-        double s2 = 1 + h[i] * h[i] + k[i] * k[i];
-
         double cosL = std::cos(L[i]);
         double sinL = std::sin(L[i]);
+        double radius = p[i] / (1 + f[i] * cosL + g[i] * sinL);
+        double alpha2 = h[i]*h[i] - k[i]*k[i];
+        double s2 = 1 + h[i]*h[i] + k[i]*k[i];
+        double sqrt_mu_over_p = std::sqrt(mu / p[i]);
 
         // Position
         r_eci  = radius * (cosL + alpha2 * cosL + 2 * h[i] * k[i] * sinL) / s2;
@@ -31,9 +30,12 @@ void mee2rv(
         r_eci  = 2 * radius * (h[i] * sinL - k[i] * cosL) / s2;
 
         // Velocity
-        double sqrt_mu_over_p = std::sqrt(mu / p[i]);
-        v_eci  = -sqrt_mu_over_p * (sinL + alpha2 * sinL - 2 * h[i] * k[i] * cosL + g[i] - 2 * f[i] * h[i] * k[i] + alpha2 * g[i]) / s2;
-        v_eci  = -sqrt_mu_over_p * (-cosL + alpha2 * cosL + 2 * h[i] * k[i] * sinL - f[i] + 2 * g[i] * h[i] * k[i] + alpha2 * f[i]) / s2;
+        v_eci  = -sqrt_mu_over_p * (sinL + alpha2 * sinL - 2 * h[i] * k[i] * cosL + g[i]
+                          - 2 * f[i] * h[i] * k[i] + alpha2 * g[i]) / s2;
+
+        v_eci  = -sqrt_mu_over_p * (-cosL + alpha2 * cosL + 2 * h[i] * k[i] * sinL - f[i]
+                          + 2 * g[i] * h[i] * k[i] + alpha2 * f[i]) / s2;
+
         v_eci  = 2 * sqrt_mu_over_p * (h[i] * cosL + k[i] * sinL + f[i] * h[i] + g[i] * k[i]) / s2;
     }
 }

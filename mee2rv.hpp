@@ -4,19 +4,6 @@
 #include <Eigen/Dense>
 #include <vector>
 
-/**
- * @brief Converts modified equinoctial elements (MEE) to position and velocity vectors in ECI frame.
- *
- * @param p     Vector of semi-latus rectum values.
- * @param f     Vector of f equinoctial elements.
- * @param g     Vector of g equinoctial elements.
- * @param h     Vector of h equinoctial elements.
- * @param k     Vector of k equinoctial elements.
- * @param L     Vector of true longitudes (radians).
- * @param mu    Gravitational parameter.
- * @param r_eci Output vector of position vectors.
- * @param v_eci Output vector of velocity vectors.
- */
 void mee2rv(
     const Eigen::VectorXd& p,
     const Eigen::VectorXd& f,
@@ -29,4 +16,4 @@ void mee2rv(
     std::vector<Eigen::Vector3d>& v_eci
 );
 
-#endif // MEE2RV_HPP
+#endif
