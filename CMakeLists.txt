@@ -8,19 +8,19 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # --------------------------
-# Kokkos Setup
+# Kokkos
 # --------------------------
 set(CMAKE_PREFIX_PATH "${CMAKE_PREFIX_PATH};$ENV{HOME}/kokkos/install")
-set(Kokkos_DIR "$ENV{HOME}/kokkos-ci-install/lib/cmake/Kokkos")
 find_package(Kokkos REQUIRED)
 
 # --------------------------
-# Eigen Setup
+# Eigen
 # --------------------------
+set(CMAKE_PREFIX_PATH "${CMAKE_PREFIX_PATH};${CMAKE_SOURCE_DIR}/build-eigen/install")
 find_package(Eigen3 REQUIRED)
 
 # --------------------------
-# Catch2 Setup
+# Catch2
 # --------------------------
 set(CMAKE_PREFIX_PATH "${CMAKE_PREFIX_PATH};$ENV{HOME}/catch2/install")
 find_package(Catch2 3 REQUIRED)
@@ -46,4 +46,3 @@ target_link_libraries(test_sigma_points
     sigma_points_lib
     Catch2::Catch2
 )
-

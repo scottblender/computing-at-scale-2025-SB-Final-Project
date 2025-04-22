@@ -43,13 +43,17 @@ cmake --build $dir/build-Catch2 -j8 --target install
 export CMAKE_PREFIX_PATH=$CMAKE_PREFIX_PATH:$dir/build-Catch2/install
 
 # --------------------------
-# Download Eigen (header-only)
+# Build Eigen (header-only)
 # --------------------------
 rm -rf $dir/eigen
 git clone --depth 1 https://gitlab.com/libeigen/eigen.git $dir/eigen
 
-export CMAKE_PREFIX_PATH=$CMAKE_PREFIX_PATH:$dir/eigen
+rm -rf $dir/build-eigen
+cmake -S $dir/eigen -B $dir/build-eigen \
+  -DCMAKE_INSTALL_PREFIX=$dir/build-eigen/install
+cmake --build $dir/build-eigen --target install
 
+export CMAKE_PREFIX_PATH=$CMAKE_PREFIX_PATH:$dir/build-eigen/install
 # --------------------------
 # Build Project
 # --------------------------
