@@ -26,6 +26,12 @@ find_package(Catch2 3 REQUIRED)
 # --------------------------
 add_library(sigma_points_lib
     sigma_points_kokkos.cpp
+    sigma_propagation.cpp
+    rv2mee.cpp
+    mee2rv.cpp
+    odefunc.cpp
+    l1_dot_2B_propul.cpp
+    lm_dot_2B_propul.cpp
 )
 target_include_directories(sigma_points_lib PUBLIC ${CMAKE_SOURCE_DIR})
 target_link_libraries(sigma_points_lib
@@ -35,7 +41,7 @@ target_link_libraries(sigma_points_lib
 )
 
 # --------------------------
-# Unit Tests
+# Unit Tests: Sigma Points
 # --------------------------
 add_executable(test_sigma_points
     main.cpp
@@ -47,6 +53,9 @@ target_link_libraries(test_sigma_points
     Catch2::Catch2
 )
 
+# --------------------------
+# Unit Tests: Sigma Propagation
+# --------------------------
 add_executable(test_sigma_propagation
     main.cpp
     test_sigma_propagation.cpp
