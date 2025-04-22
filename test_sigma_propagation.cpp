@@ -27,7 +27,7 @@ TEST_CASE("Sigma point propagation returns expected trajectory sizes", "[propaga
         // Kokkos Views: [bundle][sigma][7][step]
         Kokkos::View<double****> sigmas_combined("sigmas_combined", num_bundles, num_sigma, 7, num_steps);
         Kokkos::View<double***> new_lam_bundles("new_lam_bundles", num_steps, 7, num_bundles);
-        Kokkos::View<double******> trajectories_out("trajectories_out", num_bundles, num_sigma, num_steps - 1, 7);
+        Kokkos::View<double****> trajectories_out("trajectories_out", num_bundles, num_sigma, num_steps - 1, 7);
 
         // Fill with dummy values
         Kokkos::parallel_for("init_sigmas", num_bundles * num_sigma * 7 * num_steps, KOKKOS_LAMBDA(int idx) {
