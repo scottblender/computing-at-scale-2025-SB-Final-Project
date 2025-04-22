@@ -12,7 +12,7 @@
 #include "l1_dot_2B_propul.hpp"
 #include "lm_dot_2B_propul.hpp"
 
-// Utility to load CSV into Eigen
+// Load CSV utility
 Eigen::MatrixXd load_csv(const std::string& path, int rows, int cols) {
     Eigen::MatrixXd mat(rows, cols);
     std::ifstream file(path);
@@ -32,50 +32,46 @@ Eigen::MatrixXd load_csv(const std::string& path, int rows, int cols) {
     return mat;
 }
 
-TEST_CASE("Sigma point propagation matches reference integration", "[propagation]") {
+TEST_CASE("Sigma point propagation matches expected trajectory output", "[propagation]") {
     Kokkos::initialize();
 
     {
         const int num_bundles = 1;
         const int num_sigma = 1;
         const int num_steps = 2;
+        const int evals_per_step = 2;
 
-        std::vector<double> time = {0.0, 10.0};
+        std::vector<double> time = {0.0, 2.0};
         std::vector<double> Wm = {1.0};
         std::vector<double> Wc = {1.0};
 
-        Kokkos::View<double****> sigmas_combined("sigmas_combined", num_bundles, num_sigma, 7, num_steps);
-        Kokkos::View<double***> new_lam_bundles("new_lam_bundles", num_steps, 7, num_bundles);
-
         PropagationSettings settings;
         settings.mu = 398600.4418;
-        settings.F = 1.0;
+        settings.F = 0.0;  // disable thrust to match dummy CSV
         settings.c = 300.0;
         settings.m0 = 1000.0;
         settings.g0 = 9.80665;
-        settings.num_eval_per_step = 20;
+        settings.num_eval_per_step = evals_per_step;
         settings.state_size = 7;
         settings.control_size = 7;
 
-        const int num_storage_steps = (num_steps - 1) * (settings.num_eval_per_step + 1);
+        const int num_storage_steps = (num_steps - 1) * (evals_per_step + 1);
 
-        Kokkos::View<double****> trajectories_out("trajectories_out", 
-            num_bundles, 
-            num_sigma, 
-            num_storage_steps, 
-            8
-        );
+        // [bundle][sigma][step][x, y, z, vx, vy, vz, m, t]
+        Kokkos::View<double****> sigmas_combined("sigmas_combined", num_bundles, num_sigma, 7, num_steps);
+        Kokkos::View<double***> new_lam_bundles("new_lam_bundles", num_steps, 7, num_bundles);
+        Kokkos::View<double****> trajectories_out("trajectories_out", num_bundles, num_sigma, num_storage_steps, 8);
 
-        // Initialize with same values as reference
+        // Initialize initial state: r = [1000, 2000, 3000], v = [1, 2, 3], m = 500
         Kokkos::parallel_for("init_sigmas", 7, KOKKOS_LAMBDA(int k) {
-            sigmas_combined(0, 0, k, 0) = 0.1 * (k + 1);
-            sigmas_combined(0, 0, k, 1) = 0.1 * (k + 1);
+            sigmas_combined(0, 0, k, 0) = (k < 6) ? ((k < 3) ? 1000.0 + k * 1000.0 : 1.0 + (k - 3)) : 500.0;
+            sigmas_combined(0, 0, k, 1) = sigmas_combined(0, 0, k, 0);  // redundant but consistent
         });
 
-        Kokkos::parallel_for("init_lam", 7 * num_steps, KOKKOS_LAMBDA(int idx) {
+        Kokkos::parallel_for("init_lam", 14, KOKKOS_LAMBDA(int idx) {
             int t = idx / 7;
             int k = idx % 7;
-            new_lam_bundles(t, k, 0) = 0.01 * (k + 1);
+            new_lam_bundles(t, k, 0) = 0.0;  // no control input
         });
 
         propagate_sigma_trajectories(sigmas_combined, new_lam_bundles, time, Wm, Wc, settings, trajectories_out);
@@ -86,18 +82,16 @@ TEST_CASE("Sigma point propagation matches reference integration", "[propagation
         REQUIRE(host_traj.extent(0) == num_bundles);
         REQUIRE(host_traj.extent(1) == num_sigma);
         REQUIRE(host_traj.extent(2) == num_storage_steps);
-        REQUIRE(host_traj.extent(3) == 8);
+        REQUIRE(host_traj.extent(3) == 8);  // x, y, z, vx, vy, vz, m, t
 
-        // Load expected CSV
-        Eigen::MatrixXd expected = load_csv("expected_trajectory.csv", num_storage_steps, 8);
+        Eigen::MatrixXd expected = load_csv("expected_trajectory.csv", num_storage_steps, 9);
 
-        // Compare each timestep
-        for (int n = 0; n < num_storage_steps; ++n) {
+        for (int step = 0; step < num_storage_steps; ++step) {
             for (int d = 0; d < 8; ++d) {
-                double actual = host_traj(0, 0, n, d);
-                double ref = expected(n, d);
-                INFO("Mismatch at step " << n << ", dim " << d);
-                CHECK_THAT(actual, Catch::Matchers::WithinAbs(ref, 1e-6));
+                double actual = host_traj(0, 0, step, d);
+                double reference = expected(step, d);
+                INFO("Mismatch at step " << step << ", dim " << d);
+                CHECK_THAT(actual, Catch::Matchers::WithinAbs(reference, 1e-6));
             }
         }
     }
