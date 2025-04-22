@@ -30,12 +30,18 @@ void mee2rv(
         r_eci  = 2 * radius * (h[i] * sinL - k[i] * cosL) / s2;
 
         // Velocity
-        v_eci  = -sqrt_mu_over_p * (sinL + alpha2 * sinL - 2 * h[i] * k[i] * cosL + g[i]
-                          - 2 * f[i] * h[i] * k[i] + alpha2 * g[i]) / s2;
+        v_eci  = -sqrt_mu_over_p * (
+            sinL + alpha2 * sinL - 2 * h[i] * k[i] * cosL + g[i]
+            - 2 * f[i] * h[i] * k[i] + alpha2 * g[i]
+        ) / s2;
 
-        v_eci  = -sqrt_mu_over_p * (-cosL + alpha2 * cosL + 2 * h[i] * k[i] * sinL - f[i]
-                          + 2 * g[i] * h[i] * k[i] + alpha2 * f[i]) / s2;
+        v_eci  = -sqrt_mu_over_p * (
+            -cosL + alpha2 * cosL + 2 * h[i] * k[i] * sinL - f[i]
+            + 2 * g[i] * h[i] * k[i] + alpha2 * f[i]
+        ) / s2;
 
-        v_eci  = 2 * sqrt_mu_over_p * (h[i] * cosL + k[i] * sinL + f[i] * h[i] + g[i] * k[i]) / s2;
+        v_eci  = 2 * sqrt_mu_over_p * (
+            h[i] * cosL + k[i] * sinL + f[i] * h[i] + g[i] * k[i]
+        ) / s2;
     }
 }
