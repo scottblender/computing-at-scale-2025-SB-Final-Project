@@ -40,9 +40,9 @@ jobs:
         run: |
           cd ${{ github.workspace }}/build
           make
-          ./test_sigma_points
+          ./test_sigma_points  --reporter compact --success
       - name: Run Sigma Point Propagation Test
         run: |
           cd ${{ github.workspace }}/build
           make
-          ./test_sigma_points
+          ./test_sigma_points  --reporter compact --success
