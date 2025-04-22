@@ -1,4 +1,4 @@
-#include "rv2mee.h"
+#include "rv2mee.hpp"
 #include <cmath>  // For M_PI constant and other math functions
 
 // Function to convert position and velocity vectors (ECI frame) to Equinoctial Orbital Elements
