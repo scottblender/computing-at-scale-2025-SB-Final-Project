@@ -18,10 +18,14 @@ struct PropagationSettings {
     int control_size;
 };
 
-// Externally implemented conversion + dynamics functions
-Eigen::VectorXd rv2mee(const Eigen::Vector3d& r, const Eigen::Vector3d& v, double mu);
-void mee2rv(const Eigen::VectorXd& mee, double mu, Eigen::Vector3d& r, Eigen::Vector3d& v);
-void odefunc(double t, const Eigen::VectorXd& state, Eigen::VectorXd& dstate, double mu, double F, double c, double m0, double g0);
+// RK45 integrator with history output
+void rk45_integrate_history(
+    std::function<void(const Eigen::VectorXd&, Eigen::VectorXd&, double)> ode,
+    const Eigen::VectorXd& state0,
+    double t0, double t1,
+    int steps,
+    std::vector<Eigen::VectorXd>& state_history
+);
 
 // Main propagation routine
 void propagate_sigma_trajectories(
@@ -31,7 +35,7 @@ void propagate_sigma_trajectories(
     const std::vector<double>& Wm,                     // UKF weights (mean)
     const std::vector<double>& Wc,                     // UKF weights (cov)
     const PropagationSettings& settings,
-    Kokkos::View<double****>& trajectories_out       // [bundle][2n+1][step][7]
+    Kokkos::View<double****>& trajectories_out         // [bundle][2n+1][step][7]
 );
 
 #endif // SIGMA_PROPAGATION_HPP

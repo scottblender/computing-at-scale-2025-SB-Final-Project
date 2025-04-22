@@ -11,7 +11,6 @@
 #include <random>
 #include <functional>
 
-
 // Sample from multivariate normal
 Eigen::VectorXd sample_control(const Eigen::VectorXd& mean, const Eigen::MatrixXd& cov) {
     static std::mt19937 gen(42);
@@ -23,17 +22,21 @@ Eigen::VectorXd sample_control(const Eigen::VectorXd& mean, const Eigen::MatrixX
     return mean + transform * z;
 }
 
-// Basic RK45 (fixed-step)
-void rk45_integrate(
+// RK45 integration with history
+Eigen::MatrixXd rk45_integrate_history(
     std::function<void(const Eigen::VectorXd&, Eigen::VectorXd&, double)> ode,
-    Eigen::VectorXd& state,
+    const Eigen::VectorXd& state0,
     double t0, double t1,
     int steps
 ) {
+    int dim = state0.size();
+    Eigen::MatrixXd history(dim, steps + 1);
+    Eigen::VectorXd x = state0;
+    history.col(0) = x;
     double h = (t1 - t0) / steps;
-    Eigen::VectorXd k1, k2, k3, k4, k5, k6, dx;
-    Eigen::VectorXd x = state;
     double t = t0;
+
+    Eigen::VectorXd k1, k2, k3, k4, k5, k6, dx;
 
     for (int i = 0; i < steps; ++i) {
         ode(x, k1, t);
@@ -46,8 +49,11 @@ void rk45_integrate(
         dx = (16.0/135.0)*k1 + (6656.0/12825.0)*k3 + (28561.0/56430.0)*k4 - (9.0/50.0)*k5 + (2.0/55.0)*k6;
         x += h * dx;
         t += h;
+
+        history.col(i + 1) = x;
     }
-    state = x;
+
+    return history;
 }
 
 // Main Kokkos-parallel propagation function
@@ -94,19 +100,21 @@ void propagate_sigma_trajectories(
                     odefunc(t, x, dxdt, settings.mu, settings.F, settings.c, settings.m0, settings.g0);
                 };
 
-                // Integrate
-                rk45_integrate(ode, S, time[j], time[j + 1], settings.num_eval_per_step);
+                // Integrate with history
+                Eigen::MatrixXd history = rk45_integrate_history(ode, S, time[j], time[j + 1], settings.num_eval_per_step);
 
-                // Convert back to RV
-                Eigen::Vector3d r_out, v_out;
-                mee2rv(S.head(6), settings.mu, r_out, v_out);
+                // Store each step
+                for (int n = 0; n <= settings.num_eval_per_step; ++n) {
+                    Eigen::VectorXd state_n = history.col(n);
+                    Eigen::Vector3d r_out, v_out;
+                    mee2rv(state_n.head(6), settings.mu, r_out, v_out);
 
-                // Store
-                for (int k = 0; k < 3; ++k) {
-                    trajectories_out(i, sigma_idx, j, k)     = r_out(k);
-                    trajectories_out(i, sigma_idx, j, k + 3) = v_out(k);
+                    for (int k = 0; k < 3; ++k) {
+                        trajectories_out(i, sigma_idx, j * (settings.num_eval_per_step + 1) + n, k)     = r_out(k);
+                        trajectories_out(i, sigma_idx, j * (settings.num_eval_per_step + 1) + n, k + 3) = v_out(k);
+                    }
+                    trajectories_out(i, sigma_idx, j * (settings.num_eval_per_step + 1) + n, 6) = state_n(6);
                 }
-                trajectories_out(i, sigma_idx, j, 6) = S(6);
             }
         }
     });
