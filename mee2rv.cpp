@@ -2,46 +2,44 @@
 #include <cmath>
 
 void mee2rv(
-    const Eigen::VectorXd& p,
-    const Eigen::VectorXd& f,
-    const Eigen::VectorXd& g,
-    const Eigen::VectorXd& h,
-    const Eigen::VectorXd& k,
-    const Eigen::VectorXd& L,
+    const Eigen::VectorXd& mee,
     double mu,
-    std::vector<Eigen::Vector3d>& r_eci,
-    std::vector<Eigen::Vector3d>& v_eci
+    Eigen::Vector3d& r_eci,
+    Eigen::Vector3d& v_eci
 ) {
-    const int N = p.size();
-    r_eci.resize(N);
-    v_eci.resize(N);
+    double p = mee(0);
+    double f = mee(1);
+    double g = mee(2);
+    double h = mee(3);
+    double k = mee(4);
+    double L = mee(5);
 
-    for (int i = 0; i < N; ++i) {
-        double cosL = std::cos(L[i]);
-        double sinL = std::sin(L[i]);
-        double radius = p[i] / (1 + f[i] * cosL + g[i] * sinL);
-        double alpha2 = h[i]*h[i] - k[i]*k[i];
-        double s2 = 1 + h[i]*h[i] + k[i]*k[i];
-        double sqrt_mu_over_p = std::sqrt(mu / p[i]);
+    double cosL = std::cos(L);
+    double sinL = std::sin(L);
 
-        // Position (X, Y, Z)
-        r_eci[i][0] = radius * (cosL + alpha2 * cosL + 2 * h[i] * k[i] * sinL) / s2;
-        r_eci[i][1] = radius * (sinL - alpha2 * sinL + 2 * h[i] * k[i] * cosL) / s2;
-        r_eci[i][2] = 2 * radius * (h[i] * sinL - k[i] * cosL) / s2;
+    double s2 = 1 + h * h + k * k;
+    double w = 1 + f * cosL + g * sinL;
+    double r = p / w;
+    double sqrt_mu_over_p = std::sqrt(mu / p);
+    double alpha2 = h * h - k * k;
 
-        // Velocity (X_dot, Y_dot, Z_dot)
-        v_eci[i][0] = -sqrt_mu_over_p * (
-            sinL + alpha2 * sinL - 2 * h[i] * k[i] * cosL + g[i]
-            - 2 * f[i] * h[i] * k[i] + alpha2 * g[i]
-        ) / s2;
+    // Position
+    r_eci(0) = r * (cosL + alpha2 * cosL + 2 * h * k * sinL) / s2;
+    r_eci(1) = r * (sinL - alpha2 * sinL + 2 * h * k * cosL) / s2;
+    r_eci(2) = 2 * r * (h * sinL - k * cosL) / s2;
 
-        v_eci[i][1] = -sqrt_mu_over_p * (
-            -cosL + alpha2 * cosL + 2 * h[i] * k[i] * sinL - f[i]
-            + 2 * g[i] * h[i] * k[i] + alpha2 * f[i]
-        ) / s2;
+    // Velocity
+    v_eci(0) = -sqrt_mu_over_p * (
+        sinL + alpha2 * sinL - 2 * h * k * cosL + g
+        - 2 * f * h * k + alpha2 * g
+    ) / s2;
 
-        v_eci[i][2] = 2 * sqrt_mu_over_p * (
-            h[i] * cosL + k[i] * sinL + f[i] * h[i] + g[i] * k[i]
-        ) / s2;
-    }
+    v_eci(1) = -sqrt_mu_over_p * (
+        -cosL + alpha2 * cosL + 2 * h * k * sinL - f
+        + 2 * g * h * k + alpha2 * f
+    ) / s2;
+
+    v_eci(2) = 2 * sqrt_mu_over_p * (
+        h * cosL + k * sinL + f * h + g * k
+    ) / s2;
 }
