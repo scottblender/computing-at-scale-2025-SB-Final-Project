@@ -24,6 +24,7 @@ fi
 cmake -S $dir/kokkos -B $dir/build-kokkos \
   -DCMAKE_INSTALL_PREFIX=$HOME/kokkos/install \
   $kokkos_backend_flags \
+  -DKokkos_ENABLE_DEPRECATED_CODE=OFF
 
 cmake --build $dir/build-kokkos -j8 --target install
 export CMAKE_PREFIX_PATH=$CMAKE_PREFIX_PATH:$HOME/kokkos/install
