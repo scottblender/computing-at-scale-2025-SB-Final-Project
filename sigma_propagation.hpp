@@ -4,6 +4,7 @@
 #include <Kokkos_Core.hpp>
 #include <Eigen/Dense>
 #include <vector>
+#include <functional>
 
 // Settings for the propagation
 struct PropagationSettings {
@@ -18,13 +19,12 @@ struct PropagationSettings {
     int control_size;
 };
 
-// RK45 integrator with history output
-void rk45_integrate_history(
+// RK45 integrator with history output (returns [dim x steps+1] matrix)
+Eigen::MatrixXd rk45_integrate_history(
     std::function<void(const Eigen::VectorXd&, Eigen::VectorXd&, double)> ode,
     const Eigen::VectorXd& state0,
     double t0, double t1,
-    int steps,
-    std::vector<Eigen::VectorXd>& state_history
+    int steps
 );
 
 // Main propagation routine
@@ -35,7 +35,7 @@ void propagate_sigma_trajectories(
     const std::vector<double>& Wm,                     // UKF weights (mean)
     const std::vector<double>& Wc,                     // UKF weights (cov)
     const PropagationSettings& settings,
-    Kokkos::View<double****>& trajectories_out         // [bundle][2n+1][step][7]
+    Kokkos::View<double****>& trajectories_out         // [bundle][2n+1][step][8]
 );
 
 #endif // SIGMA_PROPAGATION_HPP

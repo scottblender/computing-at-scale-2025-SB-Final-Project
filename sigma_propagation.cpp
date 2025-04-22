@@ -103,17 +103,23 @@ void propagate_sigma_trajectories(
                 // Integrate with history
                 Eigen::MatrixXd history = rk45_integrate_history(ode, S, time[j], time[j + 1], settings.num_eval_per_step);
 
-                // Store each step
+                // Store each step, including time in last entry
                 for (int n = 0; n <= settings.num_eval_per_step; ++n) {
                     Eigen::VectorXd state_n = history.col(n);
                     Eigen::Vector3d r_out, v_out;
                     mee2rv(state_n.head(6), settings.mu, r_out, v_out);
 
+                    int index = j * (settings.num_eval_per_step + 1) + n;
+
                     for (int k = 0; k < 3; ++k) {
-                        trajectories_out(i, sigma_idx, j * (settings.num_eval_per_step + 1) + n, k)     = r_out(k);
-                        trajectories_out(i, sigma_idx, j * (settings.num_eval_per_step + 1) + n, k + 3) = v_out(k);
+                        trajectories_out(i, sigma_idx, index, k)     = r_out(k);
+                        trajectories_out(i, sigma_idx, index, k + 3) = v_out(k);
                     }
-                    trajectories_out(i, sigma_idx, j * (settings.num_eval_per_step + 1) + n, 6) = state_n(6);
+                    trajectories_out(i, sigma_idx, index, 6) = state_n(6);
+
+                    // Store current time
+                    double t = time[j] + (time[j + 1] - time[j]) * (static_cast<double>(n) / settings.num_eval_per_step);
+                    trajectories_out(i, sigma_idx, index, 7) = t;
                 }
             }
         }
