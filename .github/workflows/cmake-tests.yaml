@@ -18,17 +18,25 @@ jobs:
       - name: Update packages
         run: |
           sudo apt-get update
-          sudo apt-get install -yq valgrind libomp-dev
+          sudo apt-get install -yq valgrind libomp-dev cmake ninja-build
 
-      - name: Checkout repo
+      - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Cache installed dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/deps/kokkos/install
+            ~/deps/catch2/install
+            ~/deps/eigen/install
+          key: deps-${{ matrix.backend }}-${{ matrix.compiler }}-${{ matrix.build_type }}
 
       - name: Build with ${{ matrix.backend }}
         run: |
-          ./install.sh .. ${{ matrix.build_type }} ${{ matrix.compiler }} ${{ matrix.backend }}
+          ./install.sh ${{ github.workspace }} ${{ matrix.build_type }} ${{ matrix.compiler }} ${{ matrix.backend }}
 
       - name: Run Unit Tests
         run: |
-          cd ../build
-          make
-          ./test_sigma_points --reporter compact --success
+          cd ${{ github.workspace }}/build
+          ctest --output-on-failure --verbose

@@ -8,21 +8,17 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # --------------------------
-# Kokkos
+# Dependency Paths (match install.sh)
 # --------------------------
-set(CMAKE_PREFIX_PATH "${CMAKE_PREFIX_PATH};$ENV{HOME}/kokkos/install")
+list(APPEND CMAKE_PREFIX_PATH "$ENV{HOME}/deps/kokkos/install")
+list(APPEND CMAKE_PREFIX_PATH "$ENV{HOME}/deps/catch2/install")
+list(APPEND CMAKE_PREFIX_PATH "$ENV{HOME}/deps/eigen/install")
+
+# --------------------------
+# Find Dependencies
+# --------------------------
 find_package(Kokkos REQUIRED)
-
-# --------------------------
-# Eigen
-# --------------------------
-set(CMAKE_PREFIX_PATH "${CMAKE_PREFIX_PATH};${CMAKE_SOURCE_DIR}/build-eigen/install")
 find_package(Eigen3 REQUIRED)
-
-# --------------------------
-# Catch2
-# --------------------------
-set(CMAKE_PREFIX_PATH "${CMAKE_PREFIX_PATH};$ENV{HOME}/catch2/install")
 find_package(Catch2 3 REQUIRED)
 
 # --------------------------
@@ -32,7 +28,11 @@ add_library(sigma_points_lib
     sigma_points_kokkos.cpp
 )
 target_include_directories(sigma_points_lib PUBLIC ${CMAKE_SOURCE_DIR})
-target_link_libraries(sigma_points_lib PUBLIC Kokkos::kokkos Eigen3::Eigen)
+target_link_libraries(sigma_points_lib
+    PUBLIC
+    Kokkos::kokkos
+    Eigen3::Eigen
+)
 
 # --------------------------
 # Unit Tests
