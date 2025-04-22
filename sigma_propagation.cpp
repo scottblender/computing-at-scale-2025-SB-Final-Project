@@ -58,7 +58,7 @@ void propagate_sigma_trajectories(
     const std::vector<double>& Wm,
     const std::vector<double>& Wc,
     const PropagationSettings& settings,
-    Kokkos::View<double******>& trajectories_out
+    Kokkos::View<double****>& trajectories_out
 ) {
     const int num_bundles = sigmas_combined.extent(0);
     const int num_sigma = sigmas_combined.extent(1);
