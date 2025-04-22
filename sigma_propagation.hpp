@@ -31,7 +31,7 @@ void propagate_sigma_trajectories(
     const std::vector<double>& Wm,                     // UKF weights (mean)
     const std::vector<double>& Wc,                     // UKF weights (cov)
     const PropagationSettings& settings,
-    Kokkos::View<double******>& trajectories_out       // [bundle][2n+1][step][7]
+    Kokkos::View<double****>& trajectories_out       // [bundle][2n+1][step][7]
 );
 
 #endif // SIGMA_PROPAGATION_HPP
