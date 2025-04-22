@@ -24,23 +24,23 @@ void mee2rv(
         double s2 = 1 + h[i]*h[i] + k[i]*k[i];
         double sqrt_mu_over_p = std::sqrt(mu / p[i]);
 
-        // Position
-        r_eci  = radius * (cosL + alpha2 * cosL + 2 * h[i] * k[i] * sinL) / s2;
-        r_eci  = radius * (sinL - alpha2 * sinL + 2 * h[i] * k[i] * cosL) / s2;
-        r_eci  = 2 * radius * (h[i] * sinL - k[i] * cosL) / s2;
+        // Position (X, Y, Z)
+        r_eci[i][0] = radius * (cosL + alpha2 * cosL + 2 * h[i] * k[i] * sinL) / s2;
+        r_eci[i][1] = radius * (sinL - alpha2 * sinL + 2 * h[i] * k[i] * cosL) / s2;
+        r_eci[i][2] = 2 * radius * (h[i] * sinL - k[i] * cosL) / s2;
 
-        // Velocity
-        v_eci  = -sqrt_mu_over_p * (
+        // Velocity (X_dot, Y_dot, Z_dot)
+        v_eci[i][0] = -sqrt_mu_over_p * (
             sinL + alpha2 * sinL - 2 * h[i] * k[i] * cosL + g[i]
             - 2 * f[i] * h[i] * k[i] + alpha2 * g[i]
         ) / s2;
 
-        v_eci  = -sqrt_mu_over_p * (
+        v_eci[i][1] = -sqrt_mu_over_p * (
             -cosL + alpha2 * cosL + 2 * h[i] * k[i] * sinL - f[i]
             + 2 * g[i] * h[i] * k[i] + alpha2 * f[i]
         ) / s2;
 
-        v_eci  = 2 * sqrt_mu_over_p * (
+        v_eci[i][2] = 2 * sqrt_mu_over_p * (
             h[i] * cosL + k[i] * sinL + f[i] * h[i] + g[i] * k[i]
         ) / s2;
     }
