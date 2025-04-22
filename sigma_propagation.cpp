@@ -1,6 +1,16 @@
 #include "sigma_propagation.hpp"
+#include "rv2mee.hpp"
+#include "mee2rv.hpp"
+#include "odefunc.hpp"
+#include "l1_dot_2B_propul.hpp"
+#include "lm_dot_2B_propul.hpp"
+
+#include <Eigen/Dense>
+#include <Kokkos_Core.hpp>
+#include <cmath>
 #include <random>
 #include <functional>
+
 
 // Sample from multivariate normal
 Eigen::VectorXd sample_control(const Eigen::VectorXd& mean, const Eigen::MatrixXd& cov) {

@@ -36,7 +36,12 @@ jobs:
         run: |
           ./install.sh ${{ github.workspace }} ${{ matrix.build_type }} ${{ matrix.compiler }} ${{ matrix.backend }}
 
-      - name: Run Unit Tests
+      - name: Run Sigma Point Generation Test
+        run: |
+          cd ${{ github.workspace }}/build
+          make
+          ./test_sigma_points
+      - name: Run Sigma Point Propagation Test
         run: |
           cd ${{ github.workspace }}/build
           make

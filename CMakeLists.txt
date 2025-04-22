@@ -46,3 +46,13 @@ target_link_libraries(test_sigma_points
     sigma_points_lib
     Catch2::Catch2
 )
+
+add_executable(test_sigma_propagation
+    main.cpp
+    test_sigma_propagation.cpp
+)
+target_link_libraries(test_sigma_propagation
+    PRIVATE
+    sigma_points_lib
+    Catch2::Catch2
+)
