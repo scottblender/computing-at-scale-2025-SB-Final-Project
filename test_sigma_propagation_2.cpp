@@ -5,18 +5,23 @@
 #include <fstream>
 #include <sstream>
 #include <string>
+#include <vector>
 #include "sigma_propagation.hpp"
 #include "rv2mee.hpp"
 #include "mee2rv.hpp"
 #include "odefunc.hpp"
 #include "l1_dot_2B_propul.hpp"
 #include "lm_dot_2B_propul.hpp"
+#include "csv_loader.hpp"  // <-- Make sure this has load_csv() and load_weights()
 
-// CSV Loader
-Eigen::MatrixXd load_csv(const std::string& path) {
+// CSV loader for Eigen matrix
+Eigen::MatrixXd load_csv_matrix(const std::string& path) {
     std::ifstream file(path);
     std::string line;
     std::vector<std::vector<double>> rows;
+
+    // Skip header
+    std::getline(file, line);
 
     while (std::getline(file, line)) {
         std::stringstream ss(line);
@@ -36,25 +41,25 @@ Eigen::MatrixXd load_csv(const std::string& path) {
     return mat;
 }
 
-TEST_CASE("Sigma point propagation matches expected CSV output", "[propagation]") {
+TEST_CASE("Sigma point propagation matches expected CSV output (with weights)", "[propagation]") {
     Kokkos::initialize();
 
     {
-        Eigen::MatrixXd initial_data = load_csv("initial_bundle_32.csv");
-        Eigen::MatrixXd expected = load_csv("expected_trajectories_full.csv");
+        Eigen::MatrixXd initial_data = load_csv_matrix("initial_bundle_32.csv");
+        Eigen::MatrixXd expected = load_csv_matrix("expected_trajectories_full.csv");
+
+        std::vector<double> Wm, Wc;
+        load_weights("sigma_weights.csv", Wm, Wc);
 
         const int num_bundles = 1;
-        const int num_sigma = 15;
+        const int num_sigma = static_cast<int>(Wm.size());
         const int num_steps = initial_data.rows() / num_sigma;
         const int num_storage_steps = expected.rows() / num_sigma;
         const int evals_per_step = num_storage_steps / (num_steps - 1);
 
         std::vector<double> time;
         for (int i = 0; i < num_steps; ++i)
-            time.push_back(initial_data(i * num_sigma, 0));  // time from first sigma in each time slice
-
-        std::vector<double> Wm(num_sigma, 1.0 / num_sigma);
-        std::vector<double> Wc(num_sigma, 1.0 / num_sigma);
+            time.push_back(initial_data(i * num_sigma, 0));  // same time assumed per sigma at step i
 
         Kokkos::View<double****> sigmas_combined("sigmas_combined", num_bundles, num_sigma, 7, num_steps);
         Kokkos::View<double***> new_lam_bundles("new_lam_bundles", num_steps, 7, num_bundles);
@@ -88,10 +93,11 @@ TEST_CASE("Sigma point propagation matches expected CSV output", "[propagation]"
         for (int row = 0; row < expected.rows(); ++row) {
             int bundle = static_cast<int>(expected(row, 0));
             int sigma = static_cast<int>(expected(row, 1));
+            int step = row % num_storage_steps;
             for (int d = 0; d < 8; ++d) {
-                double actual = host_traj(bundle, sigma, row % num_storage_steps, d);
+                double actual = host_traj(bundle, sigma, step, d);
                 double reference = expected(row, d + 2);
-                INFO("Mismatch at bundle " << bundle << ", sigma " << sigma << ", row " << row << ", dim " << d);
+                INFO("Mismatch at bundle " << bundle << ", sigma " << sigma << ", step " << step << ", dim " << d);
                 CHECK_THAT(actual, Catch::Matchers::WithinAbs(reference, 1e-6));
             }
         }
