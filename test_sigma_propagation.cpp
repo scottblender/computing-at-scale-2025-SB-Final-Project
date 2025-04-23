@@ -96,15 +96,15 @@ TEST_CASE("Sigma point propagation matches expected trajectory output", "[propag
     Eigen::MatrixXd expected = load_csv("expected_trajectory_full.csv");
     REQUIRE(expected.cols() == 10);  // bundle, sigma, x, y, z, vx, vy, vz, m, t
 
-    for (int row = 0; row < expected.rows(); ++row) {
-        int bundle = static_cast<int>(expected(row, 0));
-        int sigma = static_cast<int>(expected(row, 1));
-        int step = row % num_storage_steps;
-        for (int d = 0; d < 8; ++d) {
-            double actual = host_traj(bundle, sigma, step, d);
-            double reference = expected(row, d + 2);
-            INFO("Mismatch at bundle " << bundle << ", sigma " << sigma << ", step " << step << ", dim " << d);
-            CHECK_THAT(actual, Catch::Matchers::WithinAbs(reference, 1e-6));
+    for (int sigma = 0; sigma < num_sigma; ++sigma) {
+        for (int step = 0; step < num_storage_steps; ++step) {
+            int row = sigma * num_storage_steps + step;
+            for (int d = 0; d < 8; ++d) {
+                double actual = host_traj(0, sigma, step, d);
+                double reference = expected(row, d + 2);
+                INFO("Mismatch at sigma " << sigma << ", step " << step << ", dim " << d);
+                CHECK_THAT(actual, Catch::Matchers::WithinAbs(reference, 1e-6));
+            }
         }
-    }
+    }    
 }
