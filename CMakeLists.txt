@@ -65,3 +65,16 @@ target_link_libraries(test_sigma_propagation
     sigma_points_lib
     Catch2::Catch2
 )
+
+# --------------------------
+# Additional Test: Sigma Propagation CSV Validation
+# --------------------------
+add_executable(test_sigma_propagation_2
+    main.cpp
+    test_sigma_propagation_2.cpp
+)
+target_link_libraries(test_sigma_propagation_2
+    PRIVATE
+    sigma_points_lib
+    Catch2::Catch2
+)
