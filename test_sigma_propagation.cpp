@@ -96,9 +96,14 @@ TEST_CASE("Sigma point propagation matches expected trajectory output", "[propag
     Eigen::MatrixXd expected = load_csv("expected_trajectory_full.csv");
     REQUIRE(expected.cols() == 10);  // bundle, sigma, x, y, z, vx, vy, vz, m, t
 
+    REQUIRE(expected.cols() >= 10);  // At minimum: bundle, sigma, x, y, z, vx, vy, vz, m, time
+    REQUIRE(expected.rows() == num_sigma * num_storage_steps);
+    // Number of rows per sigma point
+    int rows_per_sigma = expected.rows() / num_sigma;
+
     for (int sigma = 0; sigma < num_sigma; ++sigma) {
-        for (int step = 0; step < num_storage_steps; ++step) {
-            int row = sigma * num_storage_steps + step;
+        for (int step = 0; step < rows_per_sigma; ++step) {
+            int row = sigma * rows_per_sigma + step;
             for (int d = 0; d < 8; ++d) {
                 double actual = host_traj(0, sigma, step, d);
                 double reference = expected(row, d + 2);
@@ -106,5 +111,5 @@ TEST_CASE("Sigma point propagation matches expected trajectory output", "[propag
                 CHECK_THAT(actual, Catch::Matchers::WithinAbs(reference, 1e-6));
             }
         }
-    }    
+    }
 }
