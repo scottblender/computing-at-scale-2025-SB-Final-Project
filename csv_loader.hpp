@@ -16,6 +16,10 @@ inline std::vector<std::vector<double>> load_csv(const std::string& path, int ex
     std::vector<std::vector<double>> data;
     std::ifstream file(path);
     std::string line;
+
+    // Skip header if present
+    std::getline(file, line);
+
     while (std::getline(file, line)) {
         std::stringstream ss(line);
         std::string cell;
@@ -29,9 +33,9 @@ inline std::vector<std::vector<double>> load_csv(const std::string& path, int ex
     return data;
 }
 
-// Load Wm and Wc from weights CSV
+// Load Wm and Wc from sigma_weights.csv
 inline void load_weights(const std::string& path, std::vector<double>& Wm, std::vector<double>& Wc) {
-    auto data = load_csv(path, 3);
+    auto data = load_csv(path, 3);  // Expecting: [sigma_index, Wm, Wc]
     Wm.resize(data.size());
     Wc.resize(data.size());
     for (size_t i = 0; i < data.size(); ++i) {
@@ -42,17 +46,17 @@ inline void load_weights(const std::string& path, std::vector<double>& Wm, std::
 
 // Load control data into [time][7][bundle]
 inline void load_controls(const std::string& path, View3D& new_lam_bundles, int num_steps, int num_bundles) {
-    auto data = load_csv(path, 9);
+    auto data = load_csv(path, 9);  // Expecting: [time, lam0..lam6, bundle]
     Kokkos::resize(new_lam_bundles, num_steps, 7, num_bundles);
     for (const auto& row : data) {
         int t = static_cast<int>(row[0]);
         int b = static_cast<int>(row[8]);
         for (int j = 0; j < 7; ++j)
-            new_lam_bundles(t, j, b) = row[1 + j];
+            new_lam_bundles(t, j, b) = row[j + 1];
     }
 }
 
-// Load initial sigma state history into [bundle][sigma][7][step]
+// Load initial sigma point state history into [bundle][sigma][7][step]
 inline void load_sigma_points(
     const std::string& path,
     View4D& sigmas_combined,
@@ -61,7 +65,7 @@ inline void load_sigma_points(
     int& num_sigma,
     int& num_steps
 ) {
-    auto data = load_csv(path, 10); // [t, x, y, z, vx, vy, vz, m, bundle, sigma]
+    auto data = load_csv(path, 10); // [time, x, y, z, vx, vy, vz, mass, bundle, sigma]
 
     std::unordered_map<int, std::unordered_map<int, std::vector<std::vector<double>>>> bundle_map;
     std::unordered_map<int, std::vector<double>> time_map;
