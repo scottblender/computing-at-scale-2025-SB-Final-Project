@@ -12,17 +12,15 @@
 #include "odefunc.hpp"
 #include "l1_dot_2B_propul.hpp"
 #include "lm_dot_2B_propul.hpp"
-#include "csv_loader.hpp"  // contains load_csv(), load_weights(), etc.
+#include "csv_loader.hpp"  // Includes: load_csv(), load_weights()
 
-// CSV loader for Eigen matrix
+// Utility to load Eigen matrix (with header skip)
 Eigen::MatrixXd load_csv_matrix(const std::string& path) {
     std::ifstream file(path);
     std::string line;
     std::vector<std::vector<double>> rows;
 
-    // Skip header
-    std::getline(file, line);
-
+    std::getline(file, line);  // Skip header
     while (std::getline(file, line)) {
         std::stringstream ss(line);
         std::string value;
@@ -73,11 +71,11 @@ TEST_CASE("Sigma point propagation matches expected CSV output (with weights)", 
     }
 
     PropagationSettings settings;
-    settings.mu = 398600.4418;
-    settings.F = 0.0;  // disable thrust for test match
-    settings.c = 300.0;
-    settings.m0 = 1000.0;
-    settings.g0 = 9.80665;
+    settings.mu = 27.899633640439433;
+    settings.F = 0.33;
+    settings.c = 4.4246246663455135;
+    settings.m0 = 4000.0;
+    settings.g0 = 9.81;
     settings.num_eval_per_step = evals_per_step;
     settings.state_size = 7;
     settings.control_size = 7;
