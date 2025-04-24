@@ -6,6 +6,7 @@
 #include <sstream>
 #include <string>
 #include <vector>
+#include <iostream>
 
 #include "csv_loader.hpp"
 #include "sigma_propagation.hpp"
