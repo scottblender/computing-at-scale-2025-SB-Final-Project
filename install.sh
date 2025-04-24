@@ -79,9 +79,9 @@ fi
 export CMAKE_PREFIX_PATH="$CMAKE_PREFIX_PATH:$EIGEN_INSTALL"
 
 # --------------------------
-# Build Project
+# Clean & Build Project
 # --------------------------
-echo "[INFO] Configuring and building project..."
+echo "[INFO] Cleaning and building project..."
 rm -rf "$dir/build"
 cmake -S . -B "$dir/build" \
   -DCMAKE_BUILD_TYPE="$build_type" \
@@ -90,8 +90,14 @@ cmake -S . -B "$dir/build" \
 cmake --build "$dir/build" -j8
 
 # --------------------------
-# Copy CSVs into build directory for test access
+# Always copy CSVs into build directory for test access
 # --------------------------
-cp expected_trajectories_full.csv "$dir/build"
-cp initial_bundle_32.csv "$dir/build"
-cp sigma_weights.csv "$dir/build"
+echo "[INFO] Copying test CSV files into build directory..."
+for f in expected_trajectories_full.csv initial_bundle_32.csv sigma_weights.csv; do
+  if [ -f "$f" ]; then
+    cp "$f" "$dir/build/"
+  else
+    echo "[ERROR] Missing required CSV file: $f"
+    exit 1
+  fi
+done
