@@ -19,8 +19,7 @@ inline std::vector<std::vector<double>> load_csv(const std::string& path, int ex
     std::ifstream file(path);
     std::string line;
 
-    // Skip header if present
-    std::getline(file, line);
+    std::getline(file, line);  // Skip header
 
     while (std::getline(file, line)) {
         std::stringstream ss(line);
@@ -35,7 +34,7 @@ inline std::vector<std::vector<double>> load_csv(const std::string& path, int ex
     return data;
 }
 
-// Load CSV into Eigen::MatrixXd (header is skipped)
+// Load CSV into Eigen::MatrixXd
 inline Eigen::MatrixXd load_csv_matrix(const std::string& path) {
     std::ifstream file(path);
     std::string line;
@@ -50,7 +49,7 @@ inline Eigen::MatrixXd load_csv_matrix(const std::string& path) {
             try {
                 row.push_back(std::stod(value));
             } catch (...) {
-                row.push_back(0.0);  // fallback for malformed values
+                row.push_back(0.0);
             }
         }
         if (!row.empty()) rows.push_back(row);
@@ -82,19 +81,19 @@ inline void load_weights(const std::string& path, std::vector<double>& Wm, std::
     }
 }
 
-// Load lam control data into Kokkos View
+// Load lam control data into Kokkos View (from initial_bundle_32.csv format)
 inline void load_controls(const std::string& path, View3D& new_lam_bundles, int num_steps, int num_bundles) {
-    auto data = load_csv(path, 9);  // [time, lam0..lam6, bundle]
+    auto data = load_csv(path, 17);  // [time, x..m, lam0..lam6, bundle_index]
     Kokkos::resize(new_lam_bundles, num_steps, 7, num_bundles);
-    for (const auto& row : data) {
-        int t = static_cast<int>(row[0]);
-        int b = static_cast<int>(row[8]);
+    for (int i = 0; i < data.size(); ++i) {
+        int t = i;  // index-based (since time is not strictly integer-indexed)
+        int b = static_cast<int>(data[i][16]);
         for (int j = 0; j < 7; ++j)
-            new_lam_bundles(t, j, b) = row[j + 1];
+            new_lam_bundles(t, j, b) = data[i][9 + j];  // lam0 starts at index 9
     }
 }
 
-// Load sigma point history into Kokkos View4D: [bundle][sigma][7][step]
+// Load sigma point state history from expected_trajectories_full.csv
 inline void load_sigma_points(
     const std::string& path,
     View4D& sigmas_combined,
@@ -103,16 +102,16 @@ inline void load_sigma_points(
     int& num_sigma,
     int& num_steps
 ) {
-    auto data = load_csv(path, 10);  // [time, x, y, z, vx, vy, vz, m, bundle, sigma]
+    auto data = load_csv(path, 17);  // [bundle, sigma, x, y, z, vx, vy, vz, m, lam0..lam6, time]
 
     std::unordered_map<int, std::unordered_map<int, std::vector<std::vector<double>>>> bundle_map;
     std::unordered_map<int, std::vector<double>> time_map;
 
     for (const auto& row : data) {
-        double t = row[0];
-        int b = static_cast<int>(row[8]);
-        int s = static_cast<int>(row[9]);
-        std::vector<double> state(row.begin() + 1, row.begin() + 8);
+        int b = static_cast<int>(row[0]);
+        int s = static_cast<int>(row[1]);
+        double t = row[16];
+        std::vector<double> state(row.begin() + 2, row.begin() + 9);  // x..m
         bundle_map[b][s].push_back(state);
         time_map[b].push_back(t);
     }
