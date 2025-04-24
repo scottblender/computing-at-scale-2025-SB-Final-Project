@@ -7,20 +7,14 @@
 #include <string>
 #include <vector>
 #include "sigma_propagation.hpp"
-#include "rv2mee.hpp"
-#include "mee2rv.hpp"
-#include "odefunc.hpp"
-#include "l1_dot_2B_propul.hpp"
-#include "lm_dot_2B_propul.hpp"
-#include "csv_loader.hpp"  // Includes: load_csv(), load_weights()
+#include "csv_loader.hpp" // load_weights()
 
-// Utility to load Eigen matrix (with header skip)
 Eigen::MatrixXd load_csv_matrix(const std::string& path) {
     std::ifstream file(path);
     std::string line;
     std::vector<std::vector<double>> rows;
 
-    std::getline(file, line);  // Skip header
+    std::getline(file, line);  // skip header
     while (std::getline(file, line)) {
         std::stringstream ss(line);
         std::string value;
@@ -28,18 +22,15 @@ Eigen::MatrixXd load_csv_matrix(const std::string& path) {
         while (std::getline(ss, value, ',')) {
             row.push_back(std::stod(value));
         }
-        rows.push_back(row);
+        if (!row.empty()) rows.push_back(row);
     }
 
-    if (rows.empty()) {
-        throw std::runtime_error("CSV file '" + path + "' is empty or missing.");
-    }
+    if (rows.empty()) throw std::runtime_error("CSV is empty: " + path);
 
     Eigen::MatrixXd mat(rows.size(), rows[0].size());
     for (int i = 0; i < rows.size(); ++i)
         for (int j = 0; j < rows[i].size(); ++j)
             mat(i, j) = rows[i][j];
-
     return mat;
 }
 
@@ -56,9 +47,9 @@ TEST_CASE("Sigma point propagation matches expected CSV output (with weights)", 
     const int num_storage_steps = expected.rows() / num_sigma;
     const int evals_per_step = num_storage_steps / (num_steps - 1);
 
-    std::vector<double> time;
+    std::vector<double> time(num_steps);
     for (int i = 0; i < num_steps; ++i)
-        time.push_back(initial_data(i * num_sigma, 0));
+        time[i] = initial_data(i * num_sigma, 0);
 
     Kokkos::View<double****> sigmas_combined("sigmas_combined", num_bundles, num_sigma, 7, num_steps);
     Kokkos::View<double***> new_lam_bundles("new_lam_bundles", num_steps, 7, num_bundles);
@@ -89,24 +80,32 @@ TEST_CASE("Sigma point propagation matches expected CSV output (with weights)", 
     auto host_traj = Kokkos::create_mirror_view(trajectories_out);
     Kokkos::deep_copy(host_traj, trajectories_out);
 
-    REQUIRE(host_traj.extent(0) >= 1);
-    REQUIRE(host_traj.extent(1) >= 1);
-    REQUIRE(host_traj.extent(2) >= 1);
-    REQUIRE(host_traj.extent(3) == 8);
+    int traj_bundles = host_traj.extent(0);
+    int traj_sigma   = host_traj.extent(1);
+    int traj_steps   = host_traj.extent(2);
+
+    REQUIRE(traj_bundles >= 1);
+    REQUIRE(traj_sigma   == num_sigma);
+    REQUIRE(traj_steps   == num_storage_steps);
 
     for (int row = 0; row < expected.rows(); ++row) {
         int bundle = static_cast<int>(expected(row, 0));
         int sigma = static_cast<int>(expected(row, 1));
-        int step = row % num_storage_steps;
+        double time = expected(row, expected.cols() - 1);  // final column is time
+        int step = static_cast<int>((time - time[0]) / ((time.back() - time[0]) / (num_storage_steps - 1)));
 
-        REQUIRE(bundle < host_traj.extent(0));
-        REQUIRE(sigma < host_traj.extent(1));
-        REQUIRE(step < host_traj.extent(2));
+        if (bundle >= traj_bundles || sigma >= traj_sigma || step >= traj_steps) {
+            FAIL("Out-of-bounds index: bundle=" << bundle
+                 << " sigma=" << sigma << " step=" << step
+                 << " vs shape: (" << traj_bundles << "," << traj_sigma << "," << traj_steps << ")");
+            continue;
+        }
 
         for (int d = 0; d < 8; ++d) {
             double actual = host_traj(bundle, sigma, step, d);
             double reference = expected(row, d + 2);
-            INFO("Mismatch at bundle " << bundle << ", sigma " << sigma << ", step " << step << ", dim " << d);
+            INFO("Mismatch at row=" << row << " bundle=" << bundle
+                 << " sigma=" << sigma << " step=" << step << " dim=" << d);
             CHECK_THAT(actual, Catch::Matchers::WithinAbs(reference, 1e-6));
         }
     }
