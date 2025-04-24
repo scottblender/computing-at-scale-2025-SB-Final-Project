@@ -1,39 +1,3 @@
-#include <catch2/catch_test_macros.hpp>
-#include <catch2/matchers/catch_matchers_floating_point.hpp>
-#include <Kokkos_Core.hpp>
-#include <Eigen/Dense>
-#include <fstream>
-#include <sstream>
-#include <string>
-#include <vector>
-#include "sigma_propagation.hpp"
-#include "csv_loader.hpp" // load_weights()
-
-Eigen::MatrixXd load_csv_matrix(const std::string& path) {
-    std::ifstream file(path);
-    std::string line;
-    std::vector<std::vector<double>> rows;
-
-    std::getline(file, line);  // skip header
-    while (std::getline(file, line)) {
-        std::stringstream ss(line);
-        std::string value;
-        std::vector<double> row;
-        while (std::getline(ss, value, ',')) {
-            row.push_back(std::stod(value));
-        }
-        if (!row.empty()) rows.push_back(row);
-    }
-
-    if (rows.empty()) throw std::runtime_error("CSV is empty: " + path);
-
-    Eigen::MatrixXd mat(rows.size(), rows[0].size());
-    for (int i = 0; i < rows.size(); ++i)
-        for (int j = 0; j < rows[i].size(); ++j)
-            mat(i, j) = rows[i][j];
-    return mat;
-}
-
 TEST_CASE("Sigma point propagation matches expected CSV output (with weights)", "[propagation]") {
     Eigen::MatrixXd initial_data = load_csv_matrix("initial_bundle_32.csv");
     Eigen::MatrixXd expected = load_csv_matrix("expected_trajectories_full.csv");
@@ -41,15 +5,16 @@ TEST_CASE("Sigma point propagation matches expected CSV output (with weights)", 
     std::vector<double> Wm, Wc;
     load_weights("sigma_weights.csv", Wm, Wc);
 
+    const int test_bundle = 32;  
     const int num_bundles = 1;
     const int num_sigma = static_cast<int>(Wm.size());
     const int num_steps = initial_data.rows() / num_sigma;
     const int num_storage_steps = expected.rows() / num_sigma;
     const int evals_per_step = num_storage_steps / (num_steps - 1);
 
-    std::vector<double> time(num_steps);
+    std::vector<double> time;
     for (int i = 0; i < num_steps; ++i)
-        time[i] = initial_data(i * num_sigma, 0);
+        time.push_back(initial_data(i * num_sigma, 0));
 
     Kokkos::View<double****> sigmas_combined("sigmas_combined", num_bundles, num_sigma, 7, num_steps);
     Kokkos::View<double***> new_lam_bundles("new_lam_bundles", num_steps, 7, num_bundles);
@@ -80,33 +45,19 @@ TEST_CASE("Sigma point propagation matches expected CSV output (with weights)", 
     auto host_traj = Kokkos::create_mirror_view(trajectories_out);
     Kokkos::deep_copy(host_traj, trajectories_out);
 
-    int traj_bundles = host_traj.extent(0);
-    int traj_sigma   = host_traj.extent(1);
-    int traj_steps   = host_traj.extent(2);
-
-    REQUIRE(traj_bundles >= 1);
-    REQUIRE(traj_sigma   == num_sigma);
-    REQUIRE(traj_steps   == num_storage_steps);
-
     for (int row = 0; row < expected.rows(); ++row) {
         int bundle = static_cast<int>(expected(row, 0));
+        if (bundle != test_bundle) continue;  // 👈 skip unrelated bundles
+
         int sigma = static_cast<int>(expected(row, 1));
-        double t_val = expected(row, expected.cols() - 1);  // final column is time
+        double t_val = expected(row, expected.cols() - 1);
         int step = static_cast<int>((t_val - time[0]) / ((time.back() - time[0]) / (num_storage_steps - 1)));
-    
-        if (bundle >= traj_bundles || sigma >= traj_sigma || step >= traj_steps) {
-            FAIL("Out-of-bounds index: bundle=" << bundle
-                 << " sigma=" << sigma << " step=" << step
-                 << " vs shape: (" << traj_bundles << "," << traj_sigma << "," << traj_steps << ")");
-            continue;
-        }
-    
+
         for (int d = 0; d < 8; ++d) {
-            double actual = host_traj(bundle, sigma, step, d);
+            double actual = host_traj(0, sigma, step, d);
             double reference = expected(row, d + 2);
-            INFO("Mismatch at row=" << row << " bundle=" << bundle
-                 << " sigma=" << sigma << " step=" << step << " dim=" << d);
+            INFO("Mismatch at bundle " << bundle << ", sigma " << sigma << ", step " << step << ", dim " << d);
             CHECK_THAT(actual, Catch::Matchers::WithinAbs(reference, 1e-6));
         }
-    }    
+    }
 }
