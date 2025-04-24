@@ -94,7 +94,7 @@ TEST_CASE("Sigma point propagation matches expected trajectory output", "[propag
     REQUIRE(host_traj.extent(3) == 8);
 
     Eigen::MatrixXd expected = load_csv("expected_trajectory_full.csv");
-    
+
     REQUIRE(expected.cols() >= 10);  // bundle, sigma, x, y, z, vx, vy, vz, m, time
 
     REQUIRE(expected.rows() == num_bundles * num_sigma * num_storage_steps);
@@ -115,3 +115,4 @@ TEST_CASE("Sigma point propagation matches expected trajectory output", "[propag
             }
         }
     }
+}
