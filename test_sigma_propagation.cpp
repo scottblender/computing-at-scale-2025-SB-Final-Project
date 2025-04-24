@@ -6,10 +6,16 @@
 #include <sstream>
 #include <string>
 #include <vector>
+#include <stdexcept>
 #include "csv_loader.hpp"  // assumes load_csv_matrix_safe exists there
 
+// Robust CSV matrix loader with error handling
 Eigen::MatrixXd load_csv_matrix_safe(const std::string& path) {
     std::ifstream file(path);
+    if (!file.is_open()) {
+        throw std::runtime_error("Failed to open file: " + path);
+    }
+
     std::string line;
     std::vector<std::vector<double>> rows;
 
@@ -18,13 +24,15 @@ Eigen::MatrixXd load_csv_matrix_safe(const std::string& path) {
         std::stringstream ss(line);
         std::string value;
         std::vector<double> row;
+
         while (std::getline(ss, value, ',')) {
             try {
                 row.push_back(std::stod(value));
             } catch (...) {
-                row.push_back(0.0);  // fallback
+                throw std::runtime_error("Failed to parse value in " + path + ": " + value);
             }
         }
+
         if (!row.empty())
             rows.push_back(row);
     }
@@ -46,7 +54,7 @@ Eigen::MatrixXd load_csv_matrix_safe(const std::string& path) {
 
 TEST_CASE("CSV loading debug check", "[propagation-debug]") {
     Eigen::MatrixXd expected;
-    REQUIRE_NOTHROW(expected = load_csv_matrix_safe("expected_trajectory_full.csv"));
+    REQUIRE_NOTHROW(expected = load_csv_matrix_safe("expected_trajectories_full.csv"));
 
     REQUIRE(expected.cols() >= 10);
     REQUIRE(expected.rows() >= 1);
@@ -56,5 +64,5 @@ TEST_CASE("CSV loading debug check", "[propagation-debug]") {
     double x = expected(0, 2);
 
     INFO("Loaded first row: bundle=" << bundle << ", sigma=" << sigma << ", x=" << x);
-    CHECK_THAT(x, Catch::Matchers::WithinAbs(x, 1e-6));  // always passes unless x is NaN
+    CHECK_THAT(x, Catch::Matchers::WithinAbs(x, 1e-6));  // sanity check
 }
