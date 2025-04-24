@@ -6,8 +6,7 @@
 #include <sstream>
 #include <string>
 #include <vector>
-#include "sigma_propagation.hpp"
-#include "csv_loader.hpp"
+#include "csv_loader.hpp"  // assumes load_csv_matrix_safe exists there
 
 Eigen::MatrixXd load_csv_matrix_safe(const std::string& path) {
     std::ifstream file(path);
@@ -45,19 +44,17 @@ Eigen::MatrixXd load_csv_matrix_safe(const std::string& path) {
     return mat;
 }
 
-TEST_CASE("Basic dummy sigma point propagation test", "[propagation]") {
+TEST_CASE("CSV loading debug check", "[propagation-debug]") {
     Eigen::MatrixXd expected;
     REQUIRE_NOTHROW(expected = load_csv_matrix_safe("expected_trajectory_full.csv"));
 
-    // Minimal validation to isolate the crash
     REQUIRE(expected.cols() >= 10);
     REQUIRE(expected.rows() >= 1);
 
-    // Just check one element to see if it’s readable
     int bundle = static_cast<int>(expected(0, 0));
     int sigma = static_cast<int>(expected(0, 1));
     double x = expected(0, 2);
 
     INFO("Loaded first row: bundle=" << bundle << ", sigma=" << sigma << ", x=" << x);
-    CHECK(x == Approx(x));  // always passes unless x is NaN
+    CHECK_THAT(x, Catch::Matchers::WithinAbs(x, 1e-6));  // always passes unless x is NaN
 }
