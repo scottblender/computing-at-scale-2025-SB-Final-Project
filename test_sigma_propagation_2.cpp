@@ -13,7 +13,7 @@
 #include "odefunc.hpp"
 #include "l1_dot_2B_propul.hpp"
 #include "lm_dot_2B_propul.hpp"
-#include "csv_loader.hpp" 
+#include "csv_loader.hpp"
 
 TEST_CASE("Sigma point propagation matches expected CSV output (with weights)", "[propagation]") {
     Eigen::MatrixXd initial_data = load_csv_matrix("initial_bundle_32.csv");
@@ -64,16 +64,24 @@ TEST_CASE("Sigma point propagation matches expected CSV output (with weights)", 
 
     for (int row = 0; row < expected.rows(); ++row) {
         int bundle = static_cast<int>(expected(row, 0));
-        if (bundle != test_bundle) continue;  // 👈 skip unrelated bundles
+        if (bundle != test_bundle) continue;  // Skip unrelated bundles
 
         int sigma = static_cast<int>(expected(row, 1));
-        double t_val = expected(row, expected.cols() - 1);
-        int step = static_cast<int>((t_val - time[0]) / ((time.back() - time[0]) / (num_storage_steps - 1)));
+        double t_val = expected(row, expected.cols() - 1);  // time is last column
+        double t_start = time.front();
+        double t_end = time.back();
+        double step_size = (t_end - t_start) / (num_storage_steps - 1);
+        int step = static_cast<int>((t_val - t_start) / step_size + 0.5);  // nearest
+
+        REQUIRE(step >= 0);
+        REQUIRE(step < num_storage_steps);
 
         for (int d = 0; d < 8; ++d) {
             double actual = host_traj(0, sigma, step, d);
             double reference = expected(row, d + 2);
-            INFO("Mismatch at bundle " << bundle << ", sigma " << sigma << ", step " << step << ", dim " << d);
+            INFO("Mismatch at bundle " << bundle << ", sigma " << sigma
+                 << ", step " << step << ", dim " << d
+                 << ", actual=" << actual << ", expected=" << reference);
             CHECK_THAT(actual, Catch::Matchers::WithinAbs(reference, 1e-6));
         }
     }
