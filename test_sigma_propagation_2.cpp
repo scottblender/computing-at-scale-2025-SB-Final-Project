@@ -31,6 +31,10 @@ Eigen::MatrixXd load_csv_matrix(const std::string& path) {
         rows.push_back(row);
     }
 
+    if (rows.empty()) {
+        throw std::runtime_error("CSV file '" + path + "' is empty or missing.");
+    }
+
     Eigen::MatrixXd mat(rows.size(), rows[0].size());
     for (int i = 0; i < rows.size(); ++i)
         for (int j = 0; j < rows[i].size(); ++j)
@@ -85,10 +89,20 @@ TEST_CASE("Sigma point propagation matches expected CSV output (with weights)", 
     auto host_traj = Kokkos::create_mirror_view(trajectories_out);
     Kokkos::deep_copy(host_traj, trajectories_out);
 
+    REQUIRE(host_traj.extent(0) >= 1);
+    REQUIRE(host_traj.extent(1) >= 1);
+    REQUIRE(host_traj.extent(2) >= 1);
+    REQUIRE(host_traj.extent(3) == 8);
+
     for (int row = 0; row < expected.rows(); ++row) {
         int bundle = static_cast<int>(expected(row, 0));
         int sigma = static_cast<int>(expected(row, 1));
         int step = row % num_storage_steps;
+
+        REQUIRE(bundle < host_traj.extent(0));
+        REQUIRE(sigma < host_traj.extent(1));
+        REQUIRE(step < host_traj.extent(2));
+
         for (int d = 0; d < 8; ++d) {
             double actual = host_traj(bundle, sigma, step, d);
             double reference = expected(row, d + 2);
