@@ -91,16 +91,16 @@ TEST_CASE("Sigma point propagation matches expected CSV output (with weights)", 
     for (int row = 0; row < expected.rows(); ++row) {
         int bundle = static_cast<int>(expected(row, 0));
         int sigma = static_cast<int>(expected(row, 1));
-        double time = expected(row, expected.cols() - 1);  // final column is time
-        int step = static_cast<int>((time - time[0]) / ((time.back() - time[0]) / (num_storage_steps - 1)));
-
+        double t_val = expected(row, expected.cols() - 1);  // final column is time
+        int step = static_cast<int>((t_val - time[0]) / ((time.back() - time[0]) / (num_storage_steps - 1)));
+    
         if (bundle >= traj_bundles || sigma >= traj_sigma || step >= traj_steps) {
             FAIL("Out-of-bounds index: bundle=" << bundle
                  << " sigma=" << sigma << " step=" << step
                  << " vs shape: (" << traj_bundles << "," << traj_sigma << "," << traj_steps << ")");
             continue;
         }
-
+    
         for (int d = 0; d < 8; ++d) {
             double actual = host_traj(bundle, sigma, step, d);
             double reference = expected(row, d + 2);
@@ -108,5 +108,5 @@ TEST_CASE("Sigma point propagation matches expected CSV output (with weights)", 
                  << " sigma=" << sigma << " step=" << step << " dim=" << d);
             CHECK_THAT(actual, Catch::Matchers::WithinAbs(reference, 1e-6));
         }
-    }
+    }    
 }
