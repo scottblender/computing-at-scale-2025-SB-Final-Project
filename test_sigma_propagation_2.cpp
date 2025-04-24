@@ -1,3 +1,20 @@
+#include <catch2/catch_test_macros.hpp>
+#include <catch2/matchers/catch_matchers_floating_point.hpp>
+#include <Kokkos_Core.hpp>
+#include <Eigen/Dense>
+#include <fstream>
+#include <sstream>
+#include <string>
+#include <vector>
+
+#include "sigma_propagation.hpp"
+#include "rv2mee.hpp"
+#include "mee2rv.hpp"
+#include "odefunc.hpp"
+#include "l1_dot_2B_propul.hpp"
+#include "lm_dot_2B_propul.hpp"
+#include "csv_loader.hpp" 
+
 TEST_CASE("Sigma point propagation matches expected CSV output (with weights)", "[propagation]") {
     Eigen::MatrixXd initial_data = load_csv_matrix("initial_bundle_32.csv");
     Eigen::MatrixXd expected = load_csv_matrix("expected_trajectories_full.csv");
