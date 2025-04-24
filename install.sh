@@ -89,3 +89,9 @@ cmake -S . -B "$dir/build" \
 
 cmake --build "$dir/build" -j8
 
+# --------------------------
+# Copy CSVs into build directory for test access
+# --------------------------
+cp expected_trajectories_full.csv "$dir/build"
+cp initial_bundle_32.csv "$dir/build"
+cp sigma_weights.csv "$dir/build"

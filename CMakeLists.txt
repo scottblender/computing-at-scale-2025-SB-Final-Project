@@ -78,10 +78,3 @@ target_link_libraries(test_sigma_propagation_2
     sigma_points_lib
     Catch2::Catch2
 )
-
-# --------------------------
-# Copy test data to build directory
-# --------------------------
-configure_file(${CMAKE_SOURCE_DIR}/expected_trajectory_full.csv expected_trajectory_full.csv COPYONLY)
-configure_file(${CMAKE_SOURCE_DIR}/initial_bundle_32.csv initial_bundle_32.csv COPYONLY)
-configure_file(${CMAKE_SOURCE_DIR}/sigma_weights.csv sigma_weights.csv COPYONLY)
