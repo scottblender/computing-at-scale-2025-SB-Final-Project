@@ -86,7 +86,7 @@ TEST_CASE("Print propagated values for bundle=32, sigma=0 for single interval", 
 
     SUCCEED("Printed propagated values for inspection.");
 
-    Eigen::MatrixXd expected_data = load_csv_matrix("expected_trajectories_32.csv");
+    Eigen::MatrixXd expected_data = load_csv_matrix("expected_trajectories_bundle_32.csv");
     double tol = 1e-3; 
 
     for (int step = 0; step < num_storage_steps; ++step) {
