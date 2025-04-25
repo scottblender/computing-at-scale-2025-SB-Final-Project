@@ -55,8 +55,8 @@ void generate_sigma_points_kokkos(
     double alpha,
     double beta,
     double kappa,
-    const Eigen::MatrixXd& P_pos,
-    const Eigen::MatrixXd& P_vel,
+    const Eigen::MatrixXd& P_pos, // not GPU-compatible
+    const Eigen::MatrixXd& P_vel, // not GPU-compatible
     double P_mass,
     const std::vector<int>& time_steps,
     const View3D& r_bundles,
@@ -68,14 +68,14 @@ void generate_sigma_points_kokkos(
     double scaling_factor = std::sqrt(nsd + lambda);
 
     // Construct full covariance matrix
-    Eigen::MatrixXd P_combined = Eigen::MatrixXd::Zero(nsd, nsd);
+    Eigen::MatrixXd P_combined = Eigen::MatrixXd::Zero(nsd, nsd); // not GPU-compatible
     P_combined.block(0, 0, 3, 3) = P_pos;
     P_combined.block(3, 3, 3, 3) = P_vel;
     P_combined(6, 6) = P_mass;
 
     // Cholesky
-    Eigen::LLT<Eigen::MatrixXd> llt(P_combined);
-    Eigen::MatrixXd L = llt.matrixL();
+    Eigen::LLT<Eigen::MatrixXd> llt(P_combined); // not GPU-compatible
+    Eigen::MatrixXd L = llt.matrixL(); // not GPU-compatible
 
     // Launch Kokkos functor
     SigmaPointFunctor functor(

@@ -46,5 +46,5 @@ Eigen::VectorXd rv2mee(const Eigen::Vector3d& r_eci, const Eigen::Vector3d& v_ec
     mee[4] = k_elem;
     mee[5] = l_nonmod;
 
-    return mee;
+    return mee; // not GPU-compatible
 }

@@ -20,7 +20,7 @@ Eigen::MatrixXd sample_controls_host(
     Eigen::MatrixXd samples(num_steps * num_bundles, 7);
     std::mt19937 gen(42);
     std::normal_distribution<> dist(0.0, 1.0);
-    Eigen::MatrixXd P = 0.001 * Eigen::MatrixXd::Identity(7, 7);
+    Eigen::MatrixXd P = 0.001 * Eigen::MatrixXd::Identity(7, 7); 
     Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> solver(P);
     Eigen::MatrixXd transform = solver.eigenvectors() *
                                 solver.eigenvalues().cwiseMax(0).cwiseSqrt().asDiagonal();
@@ -91,13 +91,13 @@ void propagate_sigma_trajectories(
 
     auto traj_host = Kokkos::create_mirror_view(trajectories_out);
 
-    Eigen::MatrixXd P = 0.001 * Eigen::MatrixXd::Identity(7, 7);
-    Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> solver(P);
+    Eigen::MatrixXd P = 0.001 * Eigen::MatrixXd::Identity(7, 7); // not GPU-compatible
+    Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> solver(P); // not GPU-compatible
     Eigen::MatrixXd transform = solver.eigenvectors() *
                                 solver.eigenvalues().cwiseMax(0).cwiseSqrt().asDiagonal();
 
-    std::mt19937 gen(42);
-    std::normal_distribution<> dist(0.0, 1.0);
+    std::mt19937 gen(42); // not GPU-compatible
+    std::normal_distribution<> dist(0.0, 1.0); // not GPU-compatible
 
     for (int i = 0; i < num_bundles; ++i) {
         for (int sigma_idx = 0; sigma_idx < num_sigma; ++sigma_idx) {
@@ -108,20 +108,20 @@ void propagate_sigma_trajectories(
                     v0(k) = sigmas_combined(i, sigma_idx, k + 3, j);
                 }
                 double mass = sigmas_combined(i, sigma_idx, 6, j);
-                Eigen::VectorXd mee = rv2mee(r0, v0, settings.mu);
+                Eigen::VectorXd mee = rv2mee(r0, v0, settings.mu); // not GPU-compatible
 
-                Eigen::VectorXd S(14);
+                Eigen::VectorXd S(14); // not GPU-compatible
                 S.head(6) = mee;
                 S(6) = mass;
 
-                Eigen::VectorXd lam(7);
+                Eigen::VectorXd lam(7); // not GPU-compatible
                 for (int k = 0; k < 7; ++k)
                     lam(k) = lam_host(j, k, i);
                 S.tail(7) = lam;
 
                 auto ode = [&](const Eigen::VectorXd& x, Eigen::VectorXd& dxdt, double t) {
                     odefunc(t, x, dxdt, settings.mu, settings.F, settings.c, settings.m0, settings.g0);
-                };
+                }; // not GPU-compatible
 
                 int output_index = 0;
                 for (int sub = 0; sub < num_subintervals; ++sub) {

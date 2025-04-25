@@ -12,7 +12,7 @@
 #include "sigma_points_kokkos.hpp"
 
 TEST_CASE("Print propagated values for bundle=32, sigma=0 for single interval", "[propagation]") {
-    Eigen::MatrixXd initial_data = load_csv_matrix("initial_bundle_32.csv");
+    Eigen::MatrixXd initial_data = load_csv_matrix("initial_bundle_32.csv"); // not GPU-compatible
 
     std::vector<double> Wm, Wc;
     load_weights("sigma_weights.csv", Wm, Wc);
@@ -45,8 +45,8 @@ TEST_CASE("Print propagated values for bundle=32, sigma=0 for single interval", 
     std::vector<int> time_steps = {0, 1};
 
     double alpha = 1.7215, beta = 2.0, kappa = 3.0 - nsd;
-    Eigen::MatrixXd P_pos = 0.01 * Eigen::MatrixXd::Identity(3, 3);
-    Eigen::MatrixXd P_vel = 0.0001 * Eigen::MatrixXd::Identity(3, 3);
+    Eigen::MatrixXd P_pos = 0.01 * Eigen::MatrixXd::Identity(3, 3); // not GPU-compatible
+    Eigen::MatrixXd P_vel = 0.0001 * Eigen::MatrixXd::Identity(3, 3); // not GPU-compatible
     double P_mass = 0.0001;
 
     generate_sigma_points_kokkos(
@@ -76,7 +76,7 @@ TEST_CASE("Print propagated values for bundle=32, sigma=0 for single interval", 
     Kokkos::deep_copy(host_traj, trajectories_out);
 
     int sigma_to_print = 0;
-    Eigen::MatrixXd expected_data = load_csv_matrix("expected_trajectories_bundle_32.csv");
+    Eigen::MatrixXd expected_data = load_csv_matrix("expected_trajectories_bundle_32.csv"); // not GPU-compatible
     double tol = 1e-1;
     
     for (int step = 0; step < num_storage_steps; ++step) {

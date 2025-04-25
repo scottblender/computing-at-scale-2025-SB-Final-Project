@@ -2,7 +2,7 @@
 #include <cmath>
 
 void mee2rv(
-    const Eigen::VectorXd& mee,
+    const Eigen::VectorXd& mee, // not GPU-compatible
     double mu,
     Eigen::Vector3d& r_eci,
     Eigen::Vector3d& v_eci
