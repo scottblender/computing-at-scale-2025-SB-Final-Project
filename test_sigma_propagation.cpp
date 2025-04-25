@@ -54,7 +54,7 @@ Eigen::MatrixXd load_csv_matrix_safe(const std::string& path) {
 
 TEST_CASE("CSV loading debug check", "[propagation-debug]") {
     Eigen::MatrixXd expected;
-    REQUIRE_NOTHROW(expected = load_csv_matrix_safe("expected_trajectories_full.csv"));
+    REQUIRE_NOTHROW(expected = load_csv_matrix_safe("expected_trajectories_bundle_32.csv"));
 
     REQUIRE(expected.cols() >= 10);
     REQUIRE(expected.rows() >= 1);
