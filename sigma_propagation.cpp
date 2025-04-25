@@ -1,6 +1,4 @@
-#include <Kokkos_Core.hpp> // ✅ Add this FIRST
-#include "sigma_propagation.hpp" // ✅ Then include your header
-
+#include "sigma_propagation.hpp"
 #include "rv2mee.hpp"
 #include "mee2rv.hpp"
 #include "odefunc.hpp"
@@ -8,11 +6,71 @@
 #include "lm_dot_2B_propul.hpp"
 
 #include <Eigen/Dense>
+#include <Kokkos_Core.hpp>
 #include <cmath>
 #include <random>
 #include <functional>
 #include <iostream>
 
+// Sample from multivariate normal on host
+Eigen::MatrixXd sample_controls_host(
+    const Kokkos::View<double***>::HostMirror& mean_controls,
+    int num_steps, int num_bundles
+) {
+    Eigen::MatrixXd samples(num_steps * num_bundles, 7);
+    std::mt19937 gen(42);
+    std::normal_distribution<> dist(0.0, 1.0);
+    Eigen::MatrixXd P = 0.001 * Eigen::MatrixXd::Identity(7, 7);
+    Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> solver(P);
+    Eigen::MatrixXd transform = solver.eigenvectors() *
+                                solver.eigenvalues().cwiseMax(0).cwiseSqrt().asDiagonal();
+
+    for (int b = 0; b < num_bundles; ++b) {
+        for (int t = 0; t < num_steps; ++t) {
+            Eigen::VectorXd mean(7), z(7);
+            for (int i = 0; i < 7; ++i) {
+                mean(i) = mean_controls(t, i, b);
+                z(i) = dist(gen);
+            }
+            samples.row(t + b * num_steps) = (mean + transform * z).transpose();
+        }
+    }
+    return samples;
+}
+
+// RK45 integration with history
+Eigen::MatrixXd rk45_integrate_history(
+    std::function<void(const Eigen::VectorXd&, Eigen::VectorXd&, double)> ode,
+    const Eigen::VectorXd& state0,
+    double t0, double t1,
+    int steps
+) {
+    int dim = state0.size();
+    Eigen::MatrixXd history(dim, steps + 1);
+    Eigen::VectorXd x = state0;
+    history.col(0) = x;
+    double h = (t1 - t0) / steps;
+    double t = t0;
+
+    Eigen::VectorXd k1(dim), k2(dim), k3(dim), k4(dim), k5(dim), k6(dim), dx(dim);
+
+    for (int i = 0; i < steps; ++i) {
+        ode(x, k1, t);
+        ode(x + 0.25 * h * k1, k2, t + 0.25 * h);
+        ode(x + (3.0 / 32.0) * h * k1 + (9.0 / 32.0) * h * k2, k3, t + (3.0 / 8.0) * h);
+        ode(x + (1932.0 / 2197.0) * h * k1 - (7200.0 / 2197.0) * h * k2 + (7296.0 / 2197.0) * h * k3, k4, t + (12.0 / 13.0) * h);
+        ode(x + (439.0 / 216.0) * h * k1 - 8.0 * h * k2 + (3680.0 / 513.0) * h * k3 - (845.0 / 4104.0) * h * k4, k5, t + h);
+        ode(x - (8.0 / 27.0) * h * k1 + 2.0 * h * k2 - (3544.0 / 2565.0) * h * k3 + (1859.0 / 4104.0) * h * k4 - (11.0 / 40.0) * h * k5, k6, t + 0.5 * h);
+
+        dx = (16.0 / 135.0) * k1 + (6656.0 / 12825.0) * k3 + (28561.0 / 56430.0) * k4 - (9.0 / 50.0) * k5 + (2.0 / 55.0) * k6;
+        x += h * dx;
+        t += h;
+        history.col(i + 1) = x;
+    }
+    return history;
+}
+
+// Main propagation (host loop version with sampled controls)
 void propagate_sigma_trajectories(
     const Kokkos::View<double****>& sigmas_combined,
     const Kokkos::View<double***>& new_lam_bundles,
