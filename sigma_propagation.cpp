@@ -133,7 +133,10 @@ void propagate_sigma_trajectories(
                     Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> solver(P);
                     Eigen::MatrixXd transform = solver.eigenvectors() *
                                                 solver.eigenvalues().cwiseMax(0).cwiseSqrt().asDiagonal();
-                    lam = lam_host(j, Eigen::all, i);
+                    Eigen::VectorXd lam(7);
+                    for (int k = 0; k < 7; ++k) {
+                        lam(k) = lam_host(j, k, i);
+                    }
                     Eigen::VectorXd lam_sampled = lam + transform * z;
                     S.tail(7) = lam_sampled;
 
