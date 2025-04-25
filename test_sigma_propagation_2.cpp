@@ -76,16 +76,6 @@ TEST_CASE("Print propagated values for bundle=32, sigma=0 for single interval", 
     Kokkos::deep_copy(host_traj, trajectories_out);
 
     int sigma_to_print = 0;
-
-    for (int step = 0; step < num_storage_steps; ++step) {
-        std::cout << "\nStep " << step
-                  << " at time = " << host_traj(0, sigma_to_print, step, 7) << '\n';
-        for (int d = 0; d < 8; ++d)
-            std::cout << "  Dim[" << d << "] = " << host_traj(0, sigma_to_print, step, d) << '\n';
-    }
-
-    SUCCEED("Printed propagated values for inspection.");
-
     Eigen::MatrixXd expected_data = load_csv_matrix("expected_trajectories_bundle_32.csv");
     double tol = 1e-1;
     
