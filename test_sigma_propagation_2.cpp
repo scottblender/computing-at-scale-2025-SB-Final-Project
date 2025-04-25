@@ -25,54 +25,44 @@ TEST_CASE("Print propagated values for bundle=32, sigma=0 at matching time", "[p
     const int num_bundles = 1;
     const int nsd = 7;
 
-    // Extract time from initial_data
-    std::vector<double> time(num_steps);
-    for (int i = 0; i < num_steps; ++i)
-        time[i] = initial_data(i * num_sigma, 0);
-
-    // === Convert initial_data to Kokkos Views for sigma generation ===
+    // === Prepare Kokkos views ===
     Kokkos::View<double***> r_bundles("r_bundles", num_bundles, num_steps, 3);
     Kokkos::View<double***> v_bundles("v_bundles", num_bundles, num_steps, 3);
     Kokkos::View<double**> m_bundles("m_bundles", num_bundles, num_steps);
+    Kokkos::View<double***> new_lam_bundles("new_lam_bundles", num_steps, 7, num_bundles);
+    std::vector<double> time(num_steps);
 
+    // === Fill in reversed data ===
     for (int step = 0; step < num_steps; ++step) {
-        int row = step * num_sigma;  // sigma = 0 row
+        int reversed_row = (num_steps - 1 - step) * num_sigma;  // pick sigma=0 row
         for (int k = 0; k < 3; ++k) {
-            r_bundles(0, step, k) = initial_data(row, 1 + k);
-            v_bundles(0, step, k) = initial_data(row, 4 + k);
+            r_bundles(0, step, k) = initial_data(reversed_row, 1 + k);
+            v_bundles(0, step, k) = initial_data(reversed_row, 4 + k);
         }
-        m_bundles(0, step) = initial_data(row, 7);
+        m_bundles(0, step) = initial_data(reversed_row, 7);
+        for (int k = 0; k < 7; ++k)
+            new_lam_bundles(step, k, 0) = initial_data(reversed_row, 8 + k);
+        time[step] = initial_data(reversed_row, 0);
     }
 
-    // === Prepare sigma point output view ===
+    // === Sigma point generation ===
     Kokkos::View<double****> sigmas_combined("sigmas_combined", num_bundles, num_sigma, 7, num_steps);
+    std::vector<int> time_steps(num_steps);
+    std::iota(time_steps.begin(), time_steps.end(), 0);
 
-    // === Sigma point generation settings ===
     double alpha = 1.7215, beta = 2.0, kappa = 3.0 - nsd;
     Eigen::MatrixXd P_pos = 0.01 * Eigen::MatrixXd::Identity(3, 3);
     Eigen::MatrixXd P_vel = 0.0001 * Eigen::MatrixXd::Identity(3, 3);
     double P_mass = 0.0001;
 
-    std::vector<int> time_steps(num_steps);
-    std::iota(time_steps.begin(), time_steps.end(), 0);
-
     generate_sigma_points_kokkos(
         nsd, alpha, beta, kappa,
         P_pos, P_vel, P_mass,
-        time_steps,
-        r_bundles, v_bundles, m_bundles,
+        time_steps, r_bundles, v_bundles, m_bundles,
         sigmas_combined
     );
 
-    // === Extract new_lam_bundles ===
-    Kokkos::View<double***> new_lam_bundles("new_lam_bundles", num_steps, 7, num_bundles);
-    for (int step = 0; step < num_steps; ++step) {
-        int row = step * num_sigma;
-        for (int k = 0; k < 7; ++k)
-            new_lam_bundles(step, k, 0) = initial_data(row, 8 + k);
-    }
-
-    // === Propagation settings and call ===
+    // === Propagation ===
     PropagationSettings settings;
     settings.mu = 27.899633640439433;
     settings.F = 0.33;
@@ -88,16 +78,16 @@ TEST_CASE("Print propagated values for bundle=32, sigma=0 at matching time", "[p
 
     propagate_sigma_trajectories(sigmas_combined, new_lam_bundles, time, Wm, Wc, settings, trajectories_out);
 
+    // === Read result ===
     auto host_traj = Kokkos::create_mirror_view(trajectories_out);
     Kokkos::deep_copy(host_traj, trajectories_out);
 
-    // === Extract step and print values ===
     int expected_sigma = static_cast<int>(expected(0, 1));
     double t_val = expected(0, expected.cols() - 1);
     double step_size = (time.back() - time.front()) / (num_storage_steps - 1);
     int step = static_cast<int>((t_val - time.front()) / step_size + 0.5);
 
-    std::cout << "\nPropagated values for bundle=0, sigma=0 at time=" << t_val << ", step=" << step << ":\n";
+    std::cout << "\nPropagated values for bundle=0, sigma=" << expected_sigma << " at time=" << t_val << ", step=" << step << ":\n";
     for (int d = 0; d < 8; ++d)
         std::cout << "  Dim[" << d << "] = " << host_traj(0, expected_sigma, step, d) << '\n';
 
