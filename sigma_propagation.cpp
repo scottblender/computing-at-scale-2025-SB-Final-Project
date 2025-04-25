@@ -102,6 +102,7 @@ void propagate_sigma_trajectories(
     for (int i = 0; i < num_bundles; ++i) {
         for (int sigma_idx = 0; sigma_idx < num_sigma; ++sigma_idx) {
             for (int j = 0; j < num_steps - 1; ++j) {
+
                 Eigen::Vector3d r0, v0;
                 for (int k = 0; k < 3; ++k) {
                     r0(k) = sigmas_combined(i, sigma_idx, k, j);
@@ -123,10 +124,11 @@ void propagate_sigma_trajectories(
                     odefunc(t, x, dxdt, settings.mu, settings.F, settings.c, settings.m0, settings.g0);
                 };
 
-                int output_index = 0;
+                int output_index = 0;  
+
                 for (int sub = 0; sub < num_subintervals; ++sub) {
-                    double t0 = time[j] + sub * (time[j+1] - time[j]) / num_subintervals;
-                    double t1 = time[j] + (sub + 1) * (time[j+1] - time[j]) / num_subintervals;
+                    double t0 = time[j] + sub * (time[j + 1] - time[j]) / num_subintervals;
+                    double t1 = time[j] + (sub + 1) * (time[j + 1] - time[j]) / num_subintervals;
 
                     if (sub > 0) {
                         Eigen::VectorXd z(7);
@@ -138,7 +140,7 @@ void propagate_sigma_trajectories(
 
                     auto [history, time_values] = rk45_integrate_history(ode, S, t0, t1, evals_per_subinterval);
 
-                    int points_to_store = evals_per_subinterval;
+                    int points_to_store = (sub == num_subintervals - 1) ? evals_per_subinterval + 1 : evals_per_subinterval;
                     for (int n = 0; n < points_to_store; ++n) {
                         Eigen::VectorXd state_n = history.col(n);
                         Eigen::Vector3d r_out, v_out;
