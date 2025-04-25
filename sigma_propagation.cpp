@@ -138,7 +138,7 @@ void propagate_sigma_trajectories(
 
                     auto [history, time_values] = rk45_integrate_history(ode, S, t0, t1, evals_per_subinterval);
 
-                    int points_to_store = evals_per_subinterval
+                    int points_to_store = evals_per_subinterval;
                     for (int n = 0; n < points_to_store; ++n) {
                         Eigen::VectorXd state_n = history.col(n);
                         Eigen::Vector3d r_out, v_out;
