@@ -45,20 +45,18 @@ std::pair<Eigen::MatrixXd, Eigen::VectorXd> rk45_integrate_history(
     int steps
 ) {
     int dim = state0.size();
-    Eigen::MatrixXd history(dim, steps + 1);
-    Eigen::VectorXd time_vec(steps + 1);
-    double dt = (t1 - t0) / static_cast<double>(steps);
-    for (int i = 0; i <= steps; ++i){
-        time_vec(i) = t0 + i * dt;
-    }
+    Eigen::MatrixXd history(dim, steps);  // match Python: exactly `steps` output points
+    Eigen::VectorXd time_vec = Eigen::VectorXd::LinSpaced(steps, t0, t1);  // exactly like np.linspace
+
     Eigen::VectorXd x = state0;
     history.col(0) = x;
-    double h = (t1 - t0) / steps;
 
     Eigen::VectorXd k1(dim), k2(dim), k3(dim), k4(dim), k5(dim), k6(dim), dx(dim);
 
-    for (int i = 0; i < steps; ++i) {
-        double t = time_vec(i);  // Use exact linspace point instead of accumulated t
+    for (int i = 0; i < steps - 1; ++i) {
+        double t = time_vec(i);
+        double h = time_vec(i + 1) - time_vec(i);  // per-interval step size (should be uniform)
+
         ode(x, k1, t);
         ode(x + 0.25 * h * k1, k2, t + 0.25 * h);
         ode(x + (3.0 / 32.0) * h * k1 + (9.0 / 32.0) * h * k2, k3, t + (3.0 / 8.0) * h);
@@ -66,7 +64,9 @@ std::pair<Eigen::MatrixXd, Eigen::VectorXd> rk45_integrate_history(
         ode(x + (439.0 / 216.0) * h * k1 - 8.0 * h * k2 + (3680.0 / 513.0) * h * k3 - (845.0 / 4104.0) * h * k4, k5, t + h);
         ode(x - (8.0 / 27.0) * h * k1 + 2.0 * h * k2 - (3544.0 / 2565.0) * h * k3 + (1859.0 / 4104.0) * h * k4 - (11.0 / 40.0) * h * k5, k6, t + 0.5 * h);
 
-        dx = (16.0 / 135.0) * k1 + (6656.0 / 12825.0) * k3 + (28561.0 / 56430.0) * k4 - (9.0 / 50.0) * k5 + (2.0 / 55.0) * k6;
+        dx = (16.0 / 135.0) * k1 + (6656.0 / 12825.0) * k3 + (28561.0 / 56430.0) * k4
+           - (9.0 / 50.0) * k5 + (2.0 / 55.0) * k6;
+
         x += h * dx;
         history.col(i + 1) = x;
     }
