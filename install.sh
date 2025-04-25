@@ -90,12 +90,36 @@ cmake -S . -B "$dir/CPU/build" \
 cmake --build "$dir/CPU/build" -j8
 
 # --------------------------
+# Clean & Build Project
+# --------------------------
+echo "[INFO] Cleaning and building project..."
+rm -rf "$dir/GPU/build"
+cmake -S . -B "$dir/GPU/build" \
+  -DCMAKE_BUILD_TYPE="$build_type" \
+  -DCMAKE_CXX_COMPILER="$compiler"
+
+cmake --build "$dir/GPU/build" -j8
+
+# --------------------------
 # Always copy CSVs into build directory for test access
 # --------------------------
 echo "[INFO] Copying test CSV files into build directory..."
 for f in expected_trajectories_bundle_32.csv initial_bundle_32.csv sigma_weights.csv; do
   if [ -f "$f" ]; then
     cp "$f" "$dir/CPU/build/"
+  else
+    echo "[ERROR] Missing required CSV file: $f"
+    exit 1
+  fi
+done
+
+# --------------------------
+# Always copy CSVs into build directory for test access
+# --------------------------
+echo "[INFO] Copying test CSV files into build directory..."
+for f in expected_trajectories_bundle_32.csv initial_bundle_32.csv sigma_weights.csv; do
+  if [ -f "$f" ]; then
+    cp "$f" "$dir/GPU/build/"
   else
     echo "[ERROR] Missing required CSV file: $f"
     exit 1

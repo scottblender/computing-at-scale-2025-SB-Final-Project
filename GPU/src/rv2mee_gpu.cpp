@@ -1,4 +1,4 @@
-#include "rv2mee.hpp"
+#include "../include/rv2mee_gpu.hpp"
 #include <cmath>
 
 KOKKOS_INLINE_FUNCTION

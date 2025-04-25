@@ -50,4 +50,9 @@ jobs:
         run: |
           cd ${{ github.workspace }}/CPU/build
           make
-          ./test_sigma_propagation_2  --reporter compact --success
+          ./test_sigma_propagation_cpu  --reporter compact --success
+      - name: Run Sigma Point Propagation Test on Real Data (GPU)
+        run: |
+          cd ${{ github.workspace }}/GPU/build
+          make
+          ./test_sigma_propagation_gpu  --reporter compact --success

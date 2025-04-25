@@ -22,7 +22,7 @@ find_package(Eigen3 REQUIRED)
 find_package(Catch2 3 REQUIRED)
 
 # --------------------------
-# Sigma Point Library
+# Sigma Point Library (CPU version)
 # --------------------------
 add_library(sigma_points_lib
     CPU/src/sigma_points_kokkos.cpp
@@ -41,7 +41,25 @@ target_link_libraries(sigma_points_lib
 )
 
 # --------------------------
-# Unit Tests: Sigma Points
+# Sigma Point Library (GPU version)
+# --------------------------
+add_library(sigma_points_gpu_lib
+    GPU/src/sigma_propagation_gpu.cpp  # <-- your full GPU compatible version
+    GPU/src/sigma_points_kokkos_gpu.cpp
+    GPU/src/rv2mee_gpu.cpp
+    GPU/src/mee2rv_gpu.cpp
+    GPU/src/odefunc_gpu.cpp
+    GPU/src/l1_dot_2B_propul_gpu.cpp
+    GPU/src/lm_dot_2B_propul_gpu.cpp
+)
+target_include_directories(sigma_points_gpu_lib PUBLIC ${CMAKE_SOURCE_DIR})
+target_link_libraries(sigma_points_gpu_lib
+    PUBLIC
+    Kokkos::kokkos
+)
+
+# --------------------------
+# Unit Tests: Sigma Points (CPU)
 # --------------------------
 add_executable(test_sigma_points
     CPU/src/main.cpp
@@ -54,7 +72,7 @@ target_link_libraries(test_sigma_points
 )
 
 # --------------------------
-# Unit Tests: Sigma Propagation
+# Unit Tests: Sigma Propagation (CPU)
 # --------------------------
 add_executable(test_sigma_propagation
     CPU/src/main.cpp
@@ -67,14 +85,28 @@ target_link_libraries(test_sigma_propagation
 )
 
 # --------------------------
-# Additional Test: Sigma Propagation CSV Validation
+# Additional Test: Sigma Propagation CSV Validation (CPU)
 # --------------------------
-add_executable(test_sigma_propagation_2
+add_executable(test_sigma_propagation_cpu
     CPU/src/main.cpp
-    CPU/tests/test_sigma_propagation_2.cpp
+    CPU/tests/test_sigma_propagation_cpu.cpp
 )
-target_link_libraries(test_sigma_propagation_2
+target_link_libraries(test_sigma_propagation_cpu
     PRIVATE
     sigma_points_lib
     Catch2::Catch2
 )
+
+# --------------------------
+# GPU Tests: Sigma Propagation (GPU)
+# --------------------------
+add_executable(test_sigma_propagation_gpu
+    GPU/src/main.cpp
+    GPU/tests/test_sigma_propagation_gpu.cpp
+)
+target_link_libraries(test_sigma_propagation_gpu
+    PRIVATE
+    sigma_points_gpu_lib
+    Catch2::Catch2
+)
+

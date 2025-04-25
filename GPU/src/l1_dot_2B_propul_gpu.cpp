@@ -1,4 +1,4 @@
-#include "l1_dot_2B_propul.hpp"
+#include "../include/l1_dot_2B_propul_gpu.hpp"
 #include <cmath>
 
 KOKKOS_INLINE_FUNCTION
