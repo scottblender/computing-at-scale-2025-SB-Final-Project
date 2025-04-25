@@ -107,4 +107,5 @@ TEST_CASE("Print propagated values for bundle=32, sigma=0 for single interval", 
         CHECK_THAT(actual_time, Catch::Matchers::WithinAbs(expected_time, tol));  
     
     SUCCEED("Checked propagated values for Trajectory 32.");    
+    }
 }
