@@ -84,4 +84,22 @@ TEST_CASE("Print propagated values for bundle=32, sigma=0 for single interval", 
     }
 
     SUCCEED("Printed propagated values for inspection.");
+
+    Eigen::MatrixXd expected_data = load_csv_matrix("expected_trajectories_32.csv");
+    double tol = 1e-3; 
+
+    for (int step = 0; step < num_storage_steps; ++step) {
+        std::cout << "\nStep " << step
+                  << " at time = " << host_traj(0, sigma_to_print, step, 7) << '\n';
+    
+        for (int d = 0; d < 8; ++d) {
+            double actual = host_traj(0, sigma_to_print, step, d);
+            double expected = expected_data(step, d);
+            std::cout << "  Dim[" << d << "] = " << actual << " (expected " << expected << ")\n";
+    
+            CHECK_THAT(actual, Catch::Matchers::WithinAbs(expected, tol));
+        }
+    }
+
+    SUCCEED("Checked propagated values for Trajectory 32.")
 }
