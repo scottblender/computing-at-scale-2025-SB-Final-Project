@@ -31,10 +31,10 @@ TEST_CASE("Print propagated values for bundle=32, sigma=0 for single interval", 
     for (int step = 0; step < num_steps; ++step) {
 
         for (int k = 0; k < 3; ++k) {
-            r_bundles(0, step, k) = initial_data(row, 1 + k);
-            v_bundles(0, step, k) = initial_data(row, 4 + k);
+            r_bundles(0, step, k) = initial_data(step, 1 + k);
+            v_bundles(0, step, k) = initial_data(step, 4 + k);
         }
-        m_bundles(0, step) = initial_data(row, 7);
+        m_bundles(0, step) = initial_data(step, 7);
         for (int k = 0; k < 7; ++k)
             new_lam_bundles(step, k, 0) = initial_data(step, 8 + k);
         time[step] = initial_data(step, 0);
