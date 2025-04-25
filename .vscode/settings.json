@@ -8,6 +8,7 @@
         "iterator": "cpp",
         "string_view": "cpp",
         "initializer_list": "cpp",
-        "stdexcept": "cpp"
+        "stdexcept": "cpp",
+        "cmath": "cpp"
     }
 }

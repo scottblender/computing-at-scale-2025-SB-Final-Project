@@ -1,4 +1,4 @@
-#include "sample_controls_host.hpp"
+#include "../include/sample_controls_host.hpp"
 #include <random>
 
 void sample_controls_host(

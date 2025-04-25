@@ -1,7 +1,7 @@
-#include "sigma_propagation.hpp"
-#include "mee2rv.hpp"
-#include "rv2mee.hpp"
-#include "odefunc.hpp"
+#include "../include/sigma_propagation_gpu.hpp"
+#include "../include/mee2rv.hpp"
+#include "../include/rv2mee.hpp"
+#include "../include/odefunc.hpp"
 
 KOKKOS_INLINE_FUNCTION
 void rk45_step(
