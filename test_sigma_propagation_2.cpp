@@ -2,6 +2,7 @@
 #include <catch2/matchers/catch_matchers_floating_point.hpp>
 #include <Kokkos_Core.hpp>
 #include <Eigen/Dense>
+#include <numeric>
 #include <fstream>
 #include <sstream>
 #include <string>
