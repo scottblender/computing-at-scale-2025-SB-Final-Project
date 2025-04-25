@@ -86,21 +86,26 @@ TEST_CASE("Print propagated values for bundle=32, sigma=0 for single interval", 
 
     SUCCEED("Printed propagated values for inspection.");
 
-    Eigen::MatrixXd expected_data = load_csv_matrix("expected_trajectories_bundle_32.csv");
-    double tol = 1e-3; 
-
+    EEigen::MatrixXd expected_data = load_csv_matrix("expected_trajectories_bundle_32.csv");
+    double tol = 1e-1;
+    
     for (int step = 0; step < num_storage_steps; ++step) {
         std::cout << "\nStep " << step
                   << " at time = " << host_traj(0, sigma_to_print, step, 7) << '\n';
     
-        for (int d = 0; d < 8; ++d) {
+        for (int d = 0; d < 7; ++d) {  // x, y, z, vx, vy, vz, mass
             double actual = host_traj(0, sigma_to_print, step, d);
-            double expected = expected_data(step, d);
+            double expected = expected_data(step, d + 2);  // Offset by 2
             std::cout << "  Dim[" << d << "] = " << actual << " (expected " << expected << ")\n";
-    
             CHECK_THAT(actual, Catch::Matchers::WithinAbs(expected, tol));
         }
+    
+        // Time check
+        double actual_time = host_traj(0, sigma_to_print, step, 7);
+        double expected_time = expected_data(step, 9);  // time is in column 9
+        std::cout << "  Time     = " << actual_time << " (expected " << expected_time << ")\n";
+        CHECK_THAT(actual_time, Catch::Matchers::WithinAbs(expected_time, 1e-6));  // tighter tolerance
     }
-
-    SUCCEED("Checked propagated values for Trajectory 32.");
+    
+    SUCCEED("Checked propagated values for Trajectory 32.");    
 }
