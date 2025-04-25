@@ -1,3 +1,18 @@
+#include <Kokkos_Core.hpp> // ✅ Add this FIRST
+#include "sigma_propagation.hpp" // ✅ Then include your header
+
+#include "rv2mee.hpp"
+#include "mee2rv.hpp"
+#include "odefunc.hpp"
+#include "l1_dot_2B_propul.hpp"
+#include "lm_dot_2B_propul.hpp"
+
+#include <Eigen/Dense>
+#include <cmath>
+#include <random>
+#include <functional>
+#include <iostream>
+
 void propagate_sigma_trajectories(
     const Kokkos::View<double****>& sigmas_combined,
     const Kokkos::View<double***>& new_lam_bundles,
