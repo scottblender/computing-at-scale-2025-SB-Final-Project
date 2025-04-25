@@ -38,7 +38,7 @@ Eigen::MatrixXd sample_controls_host(
     return samples;
 }
 
-// Integrator function
+// Integrator with time vector output
 std::pair<Eigen::MatrixXd, Eigen::VectorXd> rk45_integrate_history(
     std::function<void(const Eigen::VectorXd&, Eigen::VectorXd&, double)> ode,
     const Eigen::VectorXd& state0,
@@ -54,8 +54,8 @@ std::pair<Eigen::MatrixXd, Eigen::VectorXd> rk45_integrate_history(
 
     Eigen::VectorXd k1(dim), k2(dim), k3(dim), k4(dim), k5(dim), k6(dim), dx(dim);
 
-    double t = t0;
     for (int i = 0; i < steps; ++i) {
+        double t = time_vec(i);
         ode(x, k1, t);
         ode(x + 0.25 * h * k1, k2, t + 0.25 * h);
         ode(x + (3.0 / 32.0) * h * k1 + (9.0 / 32.0) * h * k2, k3, t + (3.0 / 8.0) * h);
@@ -65,7 +65,6 @@ std::pair<Eigen::MatrixXd, Eigen::VectorXd> rk45_integrate_history(
 
         dx = (16.0 / 135.0) * k1 + (6656.0 / 12825.0) * k3 + (28561.0 / 56430.0) * k4 - (9.0 / 50.0) * k5 + (2.0 / 55.0) * k6;
         x += h * dx;
-        t += h;
         history.col(i + 1) = x;
     }
 
@@ -125,24 +124,20 @@ void propagate_sigma_trajectories(
                     odefunc(t, x, dxdt, settings.mu, settings.F, settings.c, settings.m0, settings.g0);
                 };
 
-                double t_start = time[j];
-                double t_end = time[j + 1];
-                double total_h = (t_end - t_start) / settings.num_eval_per_step;
-                int output_index = 0;  // reset output index for each step j
-
+                int output_index = 0;
                 for (int sub = 0; sub < num_subintervals; ++sub) {
-                    double t0 = t_start + sub * (t_end - t_start) / num_subintervals;
-                    double t1 = t_start + (sub + 1) * (t_end - t_start) / num_subintervals;
+                    double t0 = time[j] + sub * (time[j+1] - time[j]) / num_subintervals;
+                    double t1 = time[j] + (sub + 1) * (time[j+1] - time[j]) / num_subintervals;
 
                     if (sub > 0) {
                         Eigen::VectorXd z(7);
                         for (int k = 0; k < 7; ++k)
                             z(k) = dist(gen);
-                        lam = lam + transform * z;
+                        lam += transform * z;
                         S.tail(7) = lam;
                     }
 
-                    auto [history, time_values_local] = rk45_integrate_history(ode, S, t0, t1, evals_per_subinterval);
+                    auto [history, time_values] = rk45_integrate_history(ode, S, t0, t1, evals_per_subinterval);
 
                     int points_to_store = (sub == num_subintervals - 1) ? evals_per_subinterval + 1 : evals_per_subinterval;
                     for (int n = 0; n < points_to_store; ++n) {
@@ -156,8 +151,7 @@ void propagate_sigma_trajectories(
                             traj_host(i, sigma_idx, index, k + 3) = v_out(k);
                         }
                         traj_host(i, sigma_idx, index, 6) = state_n(6);
-                        double total_h = (time[j+1] - time[j]) / settings.num_eval_per_step;
-                        traj_host(i, sigma_idx, index, 7) = time_values_local(n);
+                        traj_host(i, sigma_idx, index, 7) = time_values(n);
                     }
 
                     S = history.col(history.cols() - 1);
