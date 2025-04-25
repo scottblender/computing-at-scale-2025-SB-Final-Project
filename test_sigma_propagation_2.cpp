@@ -84,8 +84,8 @@ TEST_CASE("Print propagated values for bundle=32, sigma=0 at matching time", "[p
 
     int expected_sigma = static_cast<int>(expected(0, 1));
     double t_val = expected(0, expected.cols() - 1);
-    double step_size = (time.back() - time.front()) / (num_storage_steps - 1);
-    int step = static_cast<int>((t_val - time.front()) / step_size + 0.5);
+    double step_size = (time.front() - time.back()) / (num_storage_steps - 1); 
+    int step = static_cast<int>((time.front() - t_val) / step_size + 0.5);  
 
     std::cout << "\nPropagated values for bundle=0, sigma=" << expected_sigma << " at time=" << t_val << ", step=" << step << ":\n";
     for (int d = 0; d < 8; ++d)
