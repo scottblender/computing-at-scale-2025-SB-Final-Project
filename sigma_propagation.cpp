@@ -155,7 +155,7 @@ void propagate_sigma_trajectories(
                         }
                         traj_host(i, sigma_idx, index, 6) = state_n(6);
                         double total_h = (time[j+1] - time[j]) / settings.num_eval_per_step;
-traj_hos                traj_host(i, sigma_idx, index, 7) = time[j] + output_index * total_h;
+                        traj_host(i, sigma_idx, index, 7) = time[j] + output_index * total_h;
                     }
 
                     S = history.col(history.cols() - 1);
