@@ -142,20 +142,25 @@ void propagate_sigma_trajectories(
                         S.tail(7) = lam;
                     }
 
-                    Eigen::MatrixXd history = rk45_integrate_history(ode, S, t0, t1, evals_per_subinterval-1);
+                    Eigen::MatrixXd history = rk45_integrate_history(ode, S, t0, t1, evals_per_subinterval);
 
-                    for (int n = 0; n < history.cols() - (sub < num_subintervals - 1 ? 1 : 0); ++n){
+                    // Don't double-count the final point of each subinterval except the last one
+                    int points_to_store = (sub == num_subintervals - 1) ? evals_per_subinterval + 1 : evals_per_subinterval;
+
+                    for (int n = 0; n < points_to_store; ++n) {
                         Eigen::VectorXd state_n = history.col(n);
                         Eigen::Vector3d r_out, v_out;
                         mee2rv(state_n.head(6), settings.mu, r_out, v_out);
 
-                        int index = j * (settings.num_eval_per_step + 1) + output_index++;
+                        int index = j * settings.num_eval_per_step + output_index++;
                         for (int k = 0; k < 3; ++k) {
                             traj_host(i, sigma_idx, index, k)     = r_out(k);
                             traj_host(i, sigma_idx, index, k + 3) = v_out(k);
                         }
                         traj_host(i, sigma_idx, index, 6) = state_n(6);
-                        traj_host(i, sigma_idx, index, 7) = t0 + total_h * n;
+                        double subinterval_h = (t1 - t0) / evals_per_subinterval;
+                        traj_host(i, sigma_idx, index, 7) = t0 + subinterval_h * n;
+
                     }
 
                     // Update S and lambda for next subinterval
