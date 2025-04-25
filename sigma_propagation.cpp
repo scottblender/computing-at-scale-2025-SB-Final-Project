@@ -125,8 +125,9 @@ void propagate_sigma_trajectories(
 
                 int output_index = 0;
                 for (int sub = 0; sub < num_subintervals; ++sub) {
-                    double t0 = time[j] + sub * (time[j+1] - time[j]) / num_subintervals;
-                    double t1 = time[j] + (sub + 1) * (time[j+1] - time[j]) / num_subintervals;
+                    double delta_t = (time[j+1] - time[j]) / num_subintervals;
+                    double t0 = time[j] + delta_t * sub;
+                    double t1 = time[j] + delta_t * (sub + 1);
 
                     if (sub > 0) {
                         Eigen::VectorXd z(7);
