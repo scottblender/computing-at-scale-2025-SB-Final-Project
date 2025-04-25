@@ -1,4 +1,4 @@
-#include "rv2mee.hpp"
+#include "../include/rv2mee.hpp"
 #include <cmath>
 
 Eigen::VectorXd rv2mee(const Eigen::Vector3d& r_eci, const Eigen::Vector3d& v_eci, double mu) {

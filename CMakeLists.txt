@@ -25,13 +25,13 @@ find_package(Catch2 3 REQUIRED)
 # Sigma Point Library
 # --------------------------
 add_library(sigma_points_lib
-    CPU/sigma_points_kokkos.cpp
-    CPU/sigma_propagation.cpp
-    CPU/rv2mee.cpp
-    CPU/mee2rv.cpp
-    CPU/odefunc.cpp
-    CPU/l1_dot_2B_propul.cpp
-    CPU/lm_dot_2B_propul.cpp
+    CPU/src/sigma_points_kokkos.cpp
+    CPU/src/sigma_propagation.cpp
+    CPU/src/rv2mee.cpp
+    CPU/src/mee2rv.cpp
+    CPU/src/odefunc.cpp
+    CPU/src/l1_dot_2B_propul.cpp
+    CPU/src/lm_dot_2B_propul.cpp
 )
 target_include_directories(sigma_points_lib PUBLIC ${CMAKE_SOURCE_DIR})
 target_link_libraries(sigma_points_lib
@@ -44,8 +44,8 @@ target_link_libraries(sigma_points_lib
 # Unit Tests: Sigma Points
 # --------------------------
 add_executable(test_sigma_points
-    CPU/main.cpp
-    CPU/test_sigma_points.cpp
+    CPU/src/main.cpp
+    CPU/tests/test_sigma_points.cpp
 )
 target_link_libraries(test_sigma_points
     PRIVATE
@@ -57,8 +57,8 @@ target_link_libraries(test_sigma_points
 # Unit Tests: Sigma Propagation
 # --------------------------
 add_executable(test_sigma_propagation
-    CPU/main.cpp
-    CPU/test_sigma_propagation.cpp
+    CPU/src/main.cpp
+    CPU/tests/test_sigma_propagation.cpp
 )
 target_link_libraries(test_sigma_propagation
     PRIVATE
@@ -70,8 +70,8 @@ target_link_libraries(test_sigma_propagation
 # Additional Test: Sigma Propagation CSV Validation
 # --------------------------
 add_executable(test_sigma_propagation_2
-    CPU/main.cpp
-    CPU/test_sigma_propagation_2.cpp
+    CPU/src/main.cpp
+    CPU/tests/test_sigma_propagation_2.cpp
 )
 target_link_libraries(test_sigma_propagation_2
     PRIVATE

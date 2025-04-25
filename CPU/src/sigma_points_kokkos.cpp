@@ -1,4 +1,4 @@
-#include "sigma_points_kokkos.hpp"
+#include "../include/sigma_points_kokkos.hpp"
 
 struct SigmaPointFunctor {
     View3D r_bundles, v_bundles;

@@ -1,6 +1,6 @@
-#include "odefunc.hpp"
-#include "l1_dot_2B_propul.hpp"
-#include "lm_dot_2B_propul.hpp"
+#include "../include/odefunc.hpp"
+#include "../include/l1_dot_2B_propul.hpp"
+#include "../include/lm_dot_2B_propul.hpp"
 #include <cmath>
 
 void odefunc(

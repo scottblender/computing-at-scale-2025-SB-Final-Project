@@ -7,9 +7,9 @@
 #include <iostream>
 #include <string>
 
-#include "csv_loader.hpp"
-#include "sigma_propagation.hpp"
-#include "sigma_points_kokkos.hpp"
+#include "../include/csv_loader.hpp"
+#include "../include/sigma_propagation.hpp"
+#include "../include/sigma_points_kokkos.hpp"
 
 TEST_CASE("Print propagated values for bundle=32, sigma=0 for single interval", "[propagation]") {
     Eigen::MatrixXd initial_data = load_csv_matrix("initial_bundle_32.csv"); // not GPU-compatible

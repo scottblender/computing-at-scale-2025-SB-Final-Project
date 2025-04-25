@@ -1,7 +1,7 @@
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/matchers/catch_matchers_floating_point.hpp>
 #include <Kokkos_Core.hpp>
-#include "sigma_points_kokkos.hpp"
+#include "../include/sigma_points_kokkos.hpp"
 
 using namespace Catch::Matchers;
 

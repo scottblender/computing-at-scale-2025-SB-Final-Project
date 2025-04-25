@@ -82,12 +82,12 @@ export CMAKE_PREFIX_PATH="$CMAKE_PREFIX_PATH:$EIGEN_INSTALL"
 # Clean & Build Project
 # --------------------------
 echo "[INFO] Cleaning and building project..."
-rm -rf "$dir/build"
-cmake -S . -B "$dir/build" \
+rm -rf "$dir/CPU/build"
+cmake -S . -B "$dir/CPU/build" \
   -DCMAKE_BUILD_TYPE="$build_type" \
   -DCMAKE_CXX_COMPILER="$compiler"
 
-cmake --build "$dir/build" -j8
+cmake --build "$dir/CPU/build" -j8
 
 # --------------------------
 # Always copy CSVs into build directory for test access
@@ -95,7 +95,7 @@ cmake --build "$dir/build" -j8
 echo "[INFO] Copying test CSV files into build directory..."
 for f in expected_trajectories_bundle_32.csv initial_bundle_32.csv sigma_weights.csv; do
   if [ -f "$f" ]; then
-    cp "$f" "$dir/build/"
+    cp "$f" "$dir/CPU/build/"
   else
     echo "[ERROR] Missing required CSV file: $f"
     exit 1

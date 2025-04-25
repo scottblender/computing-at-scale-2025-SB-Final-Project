@@ -7,7 +7,7 @@
 #include <string>
 #include <vector>
 #include <stdexcept>
-#include "csv_loader.hpp"  // assumes load_csv_matrix_safe exists there
+#include "../include/csv_loader.hpp"  // assumes load_csv_matrix_safe exists there
 
 // Robust CSV matrix loader with error handling
 Eigen::MatrixXd load_csv_matrix_safe(const std::string& path) {

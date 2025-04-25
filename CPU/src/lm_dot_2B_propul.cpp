@@ -1,4 +1,4 @@
-#include "lm_dot_2B_propul.hpp"
+#include "../include/lm_dot_2B_propul.hpp"
 #include <cmath>
 
 double lm_dot_2B_propul(

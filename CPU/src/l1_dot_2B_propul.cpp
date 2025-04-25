@@ -1,4 +1,4 @@
-#include "l1_dot_2B_propul.hpp"
+#include "../include/l1_dot_2B_propul.hpp"
 #include <Eigen/Dense>
 #include <cmath>
 

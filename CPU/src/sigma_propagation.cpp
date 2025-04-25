@@ -1,9 +1,9 @@
-#include "sigma_propagation.hpp"
-#include "rv2mee.hpp"
-#include "mee2rv.hpp"
-#include "odefunc.hpp"
-#include "l1_dot_2B_propul.hpp"
-#include "lm_dot_2B_propul.hpp"
+#include "../include/sigma_propagation.hpp"
+#include "../include/rv2mee.hpp"
+#include "../include/mee2rv.hpp"
+#include "../include/odefunc.hpp"
+#include "../include/l1_dot_2B_propul.hpp"
+#include "../include/lm_dot_2B_propul.hpp"
 
 #include <Eigen/Dense>
 #include <Kokkos_Core.hpp>
