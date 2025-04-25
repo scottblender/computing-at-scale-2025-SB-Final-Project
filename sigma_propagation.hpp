@@ -19,8 +19,8 @@ struct PropagationSettings {
     int control_size;           // Size of control vector (usually 7: lambda)
 };
 
-// RK45 integrator with history output: returns [dim x (steps+1)] matrix
-Eigen::MatrixXd rk45_integrate_history(
+// RK45 integrator with history output: returns pair of [dim x (steps+1)] matrix and time values
+std::pair<Eigen::MatrixXd, Eigen::VectorXd> rk45_integrate_history(
     std::function<void(const Eigen::VectorXd&, Eigen::VectorXd&, double)> ode,
     const Eigen::VectorXd& state0,
     double t0, double t1,

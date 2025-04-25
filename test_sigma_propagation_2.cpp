@@ -11,8 +11,10 @@
 #include "sigma_points_kokkos.hpp"
 
 TEST_CASE("Print propagated values for bundle=32, sigma=0 for single interval", "[propagation]") {
+    // Load initial data
     Eigen::MatrixXd initial_data = load_csv_matrix("initial_bundle_32.csv");
 
+    // Load weights
     std::vector<double> Wm, Wc;
     load_weights("sigma_weights.csv", Wm, Wc);
 
@@ -21,6 +23,7 @@ TEST_CASE("Print propagated values for bundle=32, sigma=0 for single interval", 
     const int num_bundles = 1;
     const int nsd = 7;
 
+    // Prepare Kokkos Views
     Kokkos::View<double***> r_bundles("r_bundles", num_bundles, num_steps, 3);
     Kokkos::View<double***> v_bundles("v_bundles", num_bundles, num_steps, 3);
     Kokkos::View<double**> m_bundles("m_bundles", num_bundles, num_steps);
@@ -39,6 +42,7 @@ TEST_CASE("Print propagated values for bundle=32, sigma=0 for single interval", 
         time[step] = initial_data(row, 0);
     }
 
+    // Generate sigma points
     Kokkos::View<double****> sigmas_combined("sigmas_combined", num_bundles, num_sigma, 7, num_steps);
     std::vector<int> time_steps = {0, 1};
 
@@ -54,6 +58,7 @@ TEST_CASE("Print propagated values for bundle=32, sigma=0 for single interval", 
         sigmas_combined
     );
 
+    // Set propagation settings
     PropagationSettings settings;
     settings.mu = 27.899633640439433;
     settings.F = 0.33;
@@ -61,21 +66,27 @@ TEST_CASE("Print propagated values for bundle=32, sigma=0 for single interval", 
     settings.m0 = 4000.0;
     settings.g0 = 9.81;
     settings.num_eval_per_step = 200;
+    settings.num_subintervals = 10;
     settings.state_size = 7;
     settings.control_size = 7;
 
+    // Output storage [bundle][sigma][step][8]
     int num_storage_steps = settings.num_eval_per_step;
     Kokkos::View<double****> trajectories_out("trajectories_out", num_bundles, num_sigma, num_storage_steps, 8);
 
+    // Run propagation
     propagate_sigma_trajectories(sigmas_combined, new_lam_bundles, time, Wm, Wc, settings, trajectories_out);
 
+    // Mirror and copy result
     auto host_traj = Kokkos::create_mirror_view(trajectories_out);
     Kokkos::deep_copy(host_traj, trajectories_out);
 
+    // Print first sigma point for manual inspection
     int sigma_to_print = 0;
 
     for (int step = 0; step < num_storage_steps; ++step) {
-        std::cout << "\nStep " << step << " at time = " << host_traj(0, sigma_to_print, step, 7) << '\n';
+        std::cout << "\nStep " << step
+                  << " at time = " << host_traj(0, sigma_to_print, step, 7) << '\n';
         for (int d = 0; d < 8; ++d)
             std::cout << "  Dim[" << d << "] = " << host_traj(0, sigma_to_print, step, d) << '\n';
     }

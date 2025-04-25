@@ -38,8 +38,8 @@ Eigen::MatrixXd sample_controls_host(
     return samples;
 }
 
-// RK45 integration with history
-Eigen::MatrixXd rk45_integrate_history(
+// Integrator function
+std::pair<Eigen::MatrixXd, Eigen::VectorXd> rk45_integrate_history(
     std::function<void(const Eigen::VectorXd&, Eigen::VectorXd&, double)> ode,
     const Eigen::VectorXd& state0,
     double t0, double t1,
@@ -47,13 +47,14 @@ Eigen::MatrixXd rk45_integrate_history(
 ) {
     int dim = state0.size();
     Eigen::MatrixXd history(dim, steps + 1);
+    Eigen::VectorXd time_vec = Eigen::VectorXd::LinSpaced(steps + 1, t0, t1);
     Eigen::VectorXd x = state0;
     history.col(0) = x;
     double h = (t1 - t0) / steps;
-    double t = t0;
 
     Eigen::VectorXd k1(dim), k2(dim), k3(dim), k4(dim), k5(dim), k6(dim), dx(dim);
 
+    double t = t0;
     for (int i = 0; i < steps; ++i) {
         ode(x, k1, t);
         ode(x + 0.25 * h * k1, k2, t + 0.25 * h);
@@ -67,7 +68,8 @@ Eigen::MatrixXd rk45_integrate_history(
         t += h;
         history.col(i + 1) = x;
     }
-    return history;
+
+    return {history, time_vec};
 }
 
 // Main propagation function
@@ -140,7 +142,7 @@ void propagate_sigma_trajectories(
                         S.tail(7) = lam;
                     }
 
-                    Eigen::MatrixXd history = rk45_integrate_history(ode, S, t0, t1, evals_per_subinterval);
+                    auto [history, time_values_local] = rk45_integrate_history(ode, S, t0, t1, evals_per_subinterval);
 
                     int points_to_store = (sub == num_subintervals - 1) ? evals_per_subinterval + 1 : evals_per_subinterval;
                     for (int n = 0; n < points_to_store; ++n) {
@@ -155,7 +157,7 @@ void propagate_sigma_trajectories(
                         }
                         traj_host(i, sigma_idx, index, 6) = state_n(6);
                         double total_h = (time[j+1] - time[j]) / settings.num_eval_per_step;
-                        traj_host(i, sigma_idx, index, 7) = time[j] + output_index * total_h;
+                        traj_host(i, sigma_idx, index, 7) = time_values_local(n);
                     }
 
                     S = history.col(history.cols() - 1);
