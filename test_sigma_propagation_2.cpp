@@ -85,6 +85,7 @@ TEST_CASE("Print propagated values for bundle=32, sigma=0 at matching time", "[p
 
     int num_storage_steps = (settings.num_eval_per_step + 1) * (num_steps - 1);
     Kokkos::View<double****> trajectories_out("trajectories_out", num_bundles, num_sigma, num_storage_steps, 8);
+    std::reverse(time.begin(), time.end());
 
     propagate_sigma_trajectories(sigmas_combined, new_lam_bundles, time, Wm, Wc, settings, trajectories_out);
 
