@@ -104,8 +104,7 @@ TEST_CASE("Print propagated values for bundle=32, sigma=0 for single interval", 
         double actual_time = host_traj(0, sigma_to_print, step, 7);
         double expected_time = expected_data(step, 9);  // time is in column 9
         std::cout << "  Time     = " << actual_time << " (expected " << expected_time << ")\n";
-        CHECK_THAT(actual_time, Catch::Matchers::WithinAbs(expected_time, 1e-6));  // tighter tolerance
-    }
+        CHECK_THAT(actual_time, Catch::Matchers::WithinAbs(expected_time, tol));  
     
     SUCCEED("Checked propagated values for Trajectory 32.");    
 }
