@@ -21,7 +21,7 @@ TEST_CASE("Print propagated values for bundle=32, sigma=0 for single interval", 
     load_weights("sigma_weights.csv", Wm, Wc);
 
     const int num_sigma = static_cast<int>(Wm.size());
-    const int num_steps = 2; // only use time[0] -> time[1]
+    const int num_steps = 2;  // Only propagate from time[0] -> time[1]
     const int num_bundles = 1;
     const int nsd = 7;
 
@@ -31,8 +31,9 @@ TEST_CASE("Print propagated values for bundle=32, sigma=0 for single interval", 
     Kokkos::View<double***> new_lam_bundles("new_lam_bundles", num_steps, 7, num_bundles);
     std::vector<double> time(num_steps);
 
+    // Fill forward in time (not reversed)
     for (int step = 0; step < num_steps; ++step) {
-        int row = (initial_data.rows() - num_sigma * (step + 1));  // reversed
+        int row = step * num_sigma;  // sigma=0 row for step
         for (int k = 0; k < 3; ++k) {
             r_bundles(0, step, k) = initial_data(row, 1 + k);
             v_bundles(0, step, k) = initial_data(row, 4 + k);
@@ -66,11 +67,11 @@ TEST_CASE("Print propagated values for bundle=32, sigma=0 for single interval", 
     settings.c = 4.4246246663455135;
     settings.m0 = 4000.0;
     settings.g0 = 9.81;
-    settings.num_eval_per_step = expected.rows() / num_sigma;  // now this is safe
+    settings.num_eval_per_step = 200;  // Use exactly 200 steps
     settings.state_size = 7;
     settings.control_size = 7;
 
-    int num_storage_steps = settings.num_eval_per_step + 1;
+    int num_storage_steps = settings.num_eval_per_step + 1;  // 201 points including both endpoints
     Kokkos::View<double****> trajectories_out("trajectories_out", num_bundles, num_sigma, num_storage_steps, 8);
 
     propagate_sigma_trajectories(sigmas_combined, new_lam_bundles, time, Wm, Wc, settings, trajectories_out);
