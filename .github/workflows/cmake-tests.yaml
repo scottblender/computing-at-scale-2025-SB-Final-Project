@@ -36,18 +36,18 @@ jobs:
         run: |
           ./install.sh ${{ github.workspace }} ${{ matrix.build_type }} ${{ matrix.compiler }} ${{ matrix.backend }}
 
-      - name: Run Sigma Point Generation Unit Test
+      - name: Run Sigma Point Generation Unit Test (CPU)
         run: |
-          cd ${{ github.workspace }}/build
+          cd ${{ github.workspace }}/CPU/build
           make
           ./test_sigma_points  --reporter compact --success
-      - name: Run Sigma Point Propagation Unit Test
+      - name: Run Sigma Point Propagation Unit Test (CPU)
         run: |
-          cd ${{ github.workspace }}/build
+          cd ${{ github.workspace }}/CPU/build
           make
           ./test_sigma_propagation  --reporter compact --success
-      - name: Run Sigma Point Propagation Test on Real Data
+      - name: Run Sigma Point Propagation Test on Real Data (CPU)
         run: |
-          cd ${{ github.workspace }}/build
+          cd ${{ github.workspace }}/CPU/build
           make
           ./test_sigma_propagation_2  --reporter compact --success
