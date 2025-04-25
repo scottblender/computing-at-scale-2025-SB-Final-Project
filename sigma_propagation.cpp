@@ -46,7 +46,11 @@ std::pair<Eigen::MatrixXd, Eigen::VectorXd> rk45_integrate_history(
 ) {
     int dim = state0.size();
     Eigen::MatrixXd history(dim, steps + 1);
-    Eigen::VectorXd time_vec = Eigen::VectorXd::LinSpaced(steps + 1, t0, t1);
+    Eigen::VectorXd time_vec(steps + 1);
+    double dt = (t1 - t0) / static_cast<double>(steps);
+    for (int i = 0; i <= steps; ++i){
+        time_vec(i) = t0 + i * dt;
+    }
     Eigen::VectorXd x = state0;
     history.col(0) = x;
     double h = (t1 - t0) / steps;
