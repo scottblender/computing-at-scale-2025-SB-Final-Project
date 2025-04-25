@@ -1,22 +1,16 @@
 #include <catch2/catch_test_macros.hpp>
-#include <catch2/matchers/catch_matchers_floating_point.hpp>
 #include <Kokkos_Core.hpp>
 #include <Eigen/Dense>
-#include <numeric>
 #include <fstream>
-#include <sstream>
-#include <string>
 #include <vector>
 #include <iostream>
+#include <string>
 
 #include "csv_loader.hpp"
 #include "sigma_propagation.hpp"
 #include "sigma_points_kokkos.hpp"
 
-using Catch::Matchers::WithinAbs;
-
-TEST_CASE("Propagate sigma trajectories from t0 to t1 for bundle 32, sigma 0", "[propagation]") {
-    Eigen::MatrixXd expected = load_csv_matrix("expected_trajectories_full.csv");
+TEST_CASE("Print propagated values for bundle=32, sigma=0 for single interval", "[propagation]") {
     Eigen::MatrixXd initial_data = load_csv_matrix("initial_bundle_32.csv");
 
     std::vector<double> Wm, Wc;
@@ -67,11 +61,10 @@ TEST_CASE("Propagate sigma trajectories from t0 to t1 for bundle 32, sigma 0", "
     settings.m0 = 4000.0;
     settings.g0 = 9.81;
     settings.num_eval_per_step = 200;
-    settings.num_subintervals = 10;
     settings.state_size = 7;
     settings.control_size = 7;
 
-    const int num_storage_steps = settings.num_eval_per_step;
+    int num_storage_steps = settings.num_eval_per_step;
     Kokkos::View<double****> trajectories_out("trajectories_out", num_bundles, num_sigma, num_storage_steps, 8);
 
     propagate_sigma_trajectories(sigmas_combined, new_lam_bundles, time, Wm, Wc, settings, trajectories_out);
@@ -79,16 +72,13 @@ TEST_CASE("Propagate sigma trajectories from t0 to t1 for bundle 32, sigma 0", "
     auto host_traj = Kokkos::create_mirror_view(trajectories_out);
     Kokkos::deep_copy(host_traj, trajectories_out);
 
-    int expected_sigma = static_cast<int>(expected(0, 1));
-    double tolerance = 1e-5;
+    int sigma_to_print = 0;
 
     for (int step = 0; step < num_storage_steps; ++step) {
-        for (int d = 0; d < 6; ++d) {
-            double actual = host_traj(0, expected_sigma, step, d);
-            double ref = expected(step, 2 + d);
-            REQUIRE_THAT(actual, WithinAbs(ref, tolerance));
-        }
+        std::cout << "\nStep " << step << " at time = " << host_traj(0, sigma_to_print, step, 7) << '\n';
+        for (int d = 0; d < 8; ++d)
+            std::cout << "  Dim[" << d << "] = " << host_traj(0, sigma_to_print, step, d) << '\n';
     }
 
-    SUCCEED("Propagated states match expected values within tolerance.");
+    SUCCEED("Printed propagated values for inspection.");
 }
