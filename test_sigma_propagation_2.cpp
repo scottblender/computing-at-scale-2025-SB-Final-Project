@@ -71,6 +71,7 @@ TEST_CASE("Print propagated values for bundle=32, sigma=0 for single interval", 
     settings.state_size = 7;
     settings.control_size = 7;
 
+    // Propagation will output exactly num_eval_per_step + 1 time points
     int num_storage_steps = settings.num_eval_per_step + 1;
     Kokkos::View<double****> trajectories_out("trajectories_out", num_bundles, num_sigma, num_storage_steps, 8);
 
@@ -80,6 +81,12 @@ TEST_CASE("Print propagated values for bundle=32, sigma=0 for single interval", 
     Kokkos::deep_copy(host_traj, trajectories_out);
 
     int expected_sigma = static_cast<int>(expected(0, 1));
+
+    // Optional validation of time range
+    REQUIRE(host_traj(0, expected_sigma, 0, 7) == Approx(time[0]).margin(1e-10));
+    REQUIRE(host_traj(0, expected_sigma, num_storage_steps - 1, 7) == Approx(time[1]).margin(1e-10));
+
+    // Print results
     for (int step = 0; step < num_storage_steps; ++step) {
         std::cout << "\nStep " << step << " at time = " << host_traj(0, expected_sigma, step, 7) << '\n';
         for (int d = 0; d < 8; ++d)

@@ -70,7 +70,7 @@ Eigen::MatrixXd rk45_integrate_history(
     return history;
 }
 
-// Main propagation (host loop version with sampled controls)
+// Main propagation function
 void propagate_sigma_trajectories(
     const Kokkos::View<double****>& sigmas_combined,
     const Kokkos::View<double***>& new_lam_bundles,
@@ -114,7 +114,6 @@ void propagate_sigma_trajectories(
                 S.head(6) = mee;
                 S(6) = mass;
 
-                // Initial lambda at beginning of interval
                 Eigen::VectorXd lam(7);
                 for (int k = 0; k < 7; ++k)
                     lam(k) = lam_host(j, k, i);
@@ -133,18 +132,16 @@ void propagate_sigma_trajectories(
                     double t0 = t_start + sub * (t_end - t_start) / num_subintervals;
                     double t1 = t_start + (sub + 1) * (t_end - t_start) / num_subintervals;
 
-                    // Resample lambda except for first subinterval
                     if (sub > 0) {
                         Eigen::VectorXd z(7);
                         for (int k = 0; k < 7; ++k)
                             z(k) = dist(gen);
-                        lam = lam + transform * z;
+                        lam += transform * z;
                         S.tail(7) = lam;
                     }
 
                     Eigen::MatrixXd history = rk45_integrate_history(ode, S, t0, t1, evals_per_subinterval);
 
-                    // Don't double-count the final point of each subinterval except the last one
                     int points_to_store = (sub == num_subintervals - 1) ? evals_per_subinterval + 1 : evals_per_subinterval;
 
                     for (int n = 0; n < points_to_store; ++n) {
@@ -154,16 +151,13 @@ void propagate_sigma_trajectories(
 
                         int index = j * settings.num_eval_per_step + output_index++;
                         for (int k = 0; k < 3; ++k) {
-                            traj_host(i, sigma_idx, index, k)     = r_out(k);
+                            traj_host(i, sigma_idx, index, k) = r_out(k);
                             traj_host(i, sigma_idx, index, k + 3) = v_out(k);
                         }
                         traj_host(i, sigma_idx, index, 6) = state_n(6);
-                        double subinterval_h = (t1 - t0) / evals_per_subinterval;
-                        traj_host(i, sigma_idx, index, 7) = t0 + subinterval_h * n;
-
+                        traj_host(i, sigma_idx, index, 7) = t0 + (t1 - t0) * (n / double(evals_per_subinterval));
                     }
 
-                    // Update S and lambda for next subinterval
                     S = history.col(history.cols() - 1);
                     lam = S.tail(7);
                 }
