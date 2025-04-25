@@ -93,7 +93,7 @@ cmake --build "$dir/build" -j8
 # Always copy CSVs into build directory for test access
 # --------------------------
 echo "[INFO] Copying test CSV files into build directory..."
-for f in expected_trajectories_full.csv initial_bundle_32.csv sigma_weights.csv; do
+for f in expected_trajectories_bundle_32.csv initial_bundle_32.csv sigma_weights.csv; do
   if [ -f "$f" ]; then
     cp "$f" "$dir/build/"
   else
