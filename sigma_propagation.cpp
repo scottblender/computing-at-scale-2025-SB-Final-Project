@@ -142,9 +142,9 @@ void propagate_sigma_trajectories(
                         S.tail(7) = lam;
                     }
 
-                    Eigen::MatrixXd history = rk45_integrate_history(ode, S, t0, t1, evals_per_subinterval);
+                    Eigen::MatrixXd history = rk45_integrate_history(ode, S, t0, t1, evals_per_subinterval-1);
 
-                    for (int n = 0; n < history.cols(); ++n) {
+                    for (int n = 0; n < history.cols() - (sub < num_subintervals - 1 ? 1 : 0); ++n){
                         Eigen::VectorXd state_n = history.col(n);
                         Eigen::Vector3d r_out, v_out;
                         mee2rv(state_n.head(6), settings.mu, r_out, v_out);
