@@ -17,7 +17,7 @@ TEST_CASE("Print propagated values for bundle=32, sigma=0 for single interval", 
     load_weights("sigma_weights.csv", Wm, Wc);
 
     const int num_sigma = static_cast<int>(Wm.size());
-    const int num_steps = 2;
+    const int num_steps = 1;
     const int num_bundles = 1;
     const int nsd = 7;
 
@@ -27,18 +27,19 @@ TEST_CASE("Print propagated values for bundle=32, sigma=0 for single interval", 
     Kokkos::View<double***> new_lam_bundles("new_lam_bundles", num_steps, 7, num_bundles);
     std::vector<double> time(num_steps);
 
-    // populate views 
+    // Fix: Reverse row index if CSV is reversed
     for (int step = 0; step < num_steps; ++step) {
-        int row = (num_steps - 1 - step) * num_sigma;  // Reverse the row order
+
         for (int k = 0; k < 3; ++k) {
             r_bundles(0, step, k) = initial_data(row, 1 + k);
             v_bundles(0, step, k) = initial_data(row, 4 + k);
         }
         m_bundles(0, step) = initial_data(row, 7);
         for (int k = 0; k < 7; ++k)
-            new_lam_bundles(step, k, 0) = initial_data(row, 8 + k);
-        time[step] = initial_data(row, 0);  // Still reversed time
-    }    
+            new_lam_bundles(step, k, 0) = initial_data(step, 8 + k);
+        time[step] = initial_data(step, 0);
+    }
+
     Kokkos::View<double****> sigmas_combined("sigmas_combined", num_bundles, num_sigma, 7, num_steps);
     std::vector<int> time_steps = {0, 1};
 
