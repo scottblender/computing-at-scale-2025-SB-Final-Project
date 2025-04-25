@@ -83,14 +83,14 @@ void propagate_sigma_trajectories(
     const int num_bundles = sigmas_combined.extent(0);
     const int num_sigma = sigmas_combined.extent(1);
     const int num_steps = sigmas_combined.extent(3);
+    const int num_subintervals = settings.num_subintervals;
+    const int evals_per_subinterval = settings.num_eval_per_step / num_subintervals;
 
     auto lam_host = Kokkos::create_mirror_view(new_lam_bundles);
     Kokkos::deep_copy(lam_host, new_lam_bundles);
 
     auto traj_host = Kokkos::create_mirror_view(trajectories_out);
 
-    const int num_subintervals = 10;
-    const int evals_per_subinterval = settings.num_eval_per_step / num_subintervals;
     Eigen::MatrixXd P = 0.001 * Eigen::MatrixXd::Identity(7, 7);
     Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> solver(P);
     Eigen::MatrixXd transform = solver.eigenvectors() *
@@ -126,7 +126,7 @@ void propagate_sigma_trajectories(
                 double t_start = time[j];
                 double t_end = time[j + 1];
                 double total_h = (t_end - t_start) / settings.num_eval_per_step;
-                int output_index = 0;
+                int output_index = 0;  // reset output index for each step j
 
                 for (int sub = 0; sub < num_subintervals; ++sub) {
                     double t0 = t_start + sub * (t_end - t_start) / num_subintervals;
@@ -136,14 +136,13 @@ void propagate_sigma_trajectories(
                         Eigen::VectorXd z(7);
                         for (int k = 0; k < 7; ++k)
                             z(k) = dist(gen);
-                        lam += transform * z;
+                        lam = lam + transform * z;
                         S.tail(7) = lam;
                     }
 
                     Eigen::MatrixXd history = rk45_integrate_history(ode, S, t0, t1, evals_per_subinterval);
 
                     int points_to_store = (sub == num_subintervals - 1) ? evals_per_subinterval + 1 : evals_per_subinterval;
-
                     for (int n = 0; n < points_to_store; ++n) {
                         Eigen::VectorXd state_n = history.col(n);
                         Eigen::Vector3d r_out, v_out;
@@ -151,11 +150,11 @@ void propagate_sigma_trajectories(
 
                         int index = j * settings.num_eval_per_step + output_index++;
                         for (int k = 0; k < 3; ++k) {
-                            traj_host(i, sigma_idx, index, k) = r_out(k);
+                            traj_host(i, sigma_idx, index, k)     = r_out(k);
                             traj_host(i, sigma_idx, index, k + 3) = v_out(k);
                         }
                         traj_host(i, sigma_idx, index, 6) = state_n(6);
-                        traj_host(i, sigma_idx, index, 7) = t0 + (t1 - t0) * (n / double(evals_per_subinterval));
+                        traj_host(i, sigma_idx, index, 7) = t0 + (t1 - t0) * (static_cast<double>(n) / evals_per_subinterval);
                     }
 
                     S = history.col(history.cols() - 1);
