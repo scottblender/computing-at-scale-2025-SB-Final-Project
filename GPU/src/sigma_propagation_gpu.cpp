@@ -1,9 +1,9 @@
-#include "sigma_propagation.hpp"
+#include "../include/sigma_propagation_gpu.hpp"
 #include "rv2mee.hpp"
 #include "mee2rv.hpp"
 #include "odefunc.hpp"
 #include "l1_dot_2B_propul.hpp"
-#include "lm_dot_2B_propul.hpp"
+#include "../../CPU/include/lm_dot_2B_propul.hpp"
 
 #include <Kokkos_Core.hpp>
 #include <cmath>

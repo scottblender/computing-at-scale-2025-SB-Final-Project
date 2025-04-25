@@ -1,6 +1,7 @@
-#include "../include/odefunc.hpp"
-#include "../include/l1_dot_2B_propul.hpp"
-#include "../include/lm_dot_2B_propul.hpp"
+#include "../include/odefunc_gpu.hpp"
+#include "../include/l1_dot_2B_propul_gpu.hpp"
+#include "../include/lm_dot_2B_propul_gpu.hpp"
+#include <Kokkos_Core.hpp>
 #include <cmath>
 
 void odefunc(
