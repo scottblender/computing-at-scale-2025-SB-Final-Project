@@ -88,8 +88,10 @@ void propagate_sigma_trajectories(
     Kokkos::deep_copy(lam_host, new_lam_bundles);
 
     Eigen::MatrixXd sampled = sample_controls_host(lam_host, num_steps, num_bundles);
-
     auto traj_host = Kokkos::create_mirror_view(trajectories_out);
+
+    const int num_subintervals = 10;
+    const int evals_per_subinterval = settings.num_eval_per_step / num_subintervals;
 
     for (int i = 0; i < num_bundles; ++i) {
         for (int sigma_idx = 0; sigma_idx < num_sigma; ++sigma_idx) {
@@ -112,20 +114,47 @@ void propagate_sigma_trajectories(
                     odefunc(t, x, dxdt, settings.mu, settings.F, settings.c, settings.m0, settings.g0);
                 };
 
-                Eigen::MatrixXd history = rk45_integrate_history(ode, S, time[j], time[j + 1], settings.num_eval_per_step);
+                double t_start = time[j];
+                double t_end = time[j + 1];
+                double total_h = (t_end - t_start) / settings.num_eval_per_step;
+                int output_index = 0;
 
-                for (int n = 0; n <= settings.num_eval_per_step; ++n) {
-                    Eigen::VectorXd state_n = history.col(n);
-                    Eigen::Vector3d r_out, v_out;
-                    mee2rv(state_n.head(6), settings.mu, r_out, v_out);
+                for (int sub = 0; sub < num_subintervals; ++sub) {
+                    double t0 = t_start + sub * (t_end - t_start) / num_subintervals;
+                    double t1 = t_start + (sub + 1) * (t_end - t_start) / num_subintervals;
 
-                    int index = j * (settings.num_eval_per_step + 1) + n;
-                    for (int k = 0; k < 3; ++k) {
-                        traj_host(i, sigma_idx, index, k)     = r_out(k);
-                        traj_host(i, sigma_idx, index, k + 3) = v_out(k);
+                    // Resample control
+                    Eigen::VectorXd z = Eigen::VectorXd::NullaryExpr(7, [&]() {
+                        static std::mt19937 gen(42);
+                        static std::normal_distribution<> dist(0.0, 1.0);
+                        return dist(gen);
+                    });
+                    Eigen::MatrixXd P = 0.001 * Eigen::MatrixXd::Identity(7, 7);
+                    Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> solver(P);
+                    Eigen::MatrixXd transform = solver.eigenvectors() *
+                                                solver.eigenvalues().cwiseMax(0).cwiseSqrt().asDiagonal();
+                    lam = lam_host(j, Eigen::all, i);
+                    Eigen::VectorXd lam_sampled = lam + transform * z;
+                    S.tail(7) = lam_sampled;
+
+                    Eigen::MatrixXd history = rk45_integrate_history(ode, S, t0, t1, evals_per_subinterval);
+
+                    for (int n = 0; n < history.cols(); ++n) {
+                        Eigen::VectorXd state_n = history.col(n);
+                        Eigen::Vector3d r_out, v_out;
+                        mee2rv(state_n.head(6), settings.mu, r_out, v_out);
+
+                        int index = j * (settings.num_eval_per_step + 1) + output_index++;
+                        for (int k = 0; k < 3; ++k) {
+                            traj_host(i, sigma_idx, index, k)     = r_out(k);
+                            traj_host(i, sigma_idx, index, k + 3) = v_out(k);
+                        }
+                        traj_host(i, sigma_idx, index, 6) = state_n(6);
+                        traj_host(i, sigma_idx, index, 7) = t0 + total_h * n;
                     }
-                    traj_host(i, sigma_idx, index, 6) = state_n(6);
-                    traj_host(i, sigma_idx, index, 7) = time[j] + (time[j + 1] - time[j]) * (static_cast<double>(n) / settings.num_eval_per_step);
+
+                    // Continue propagation from end of last interval
+                    S = history.col(history.cols() - 1);
                 }
             }
         }

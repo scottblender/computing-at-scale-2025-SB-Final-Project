@@ -31,7 +31,7 @@ TEST_CASE("Print propagated values for bundle=32, sigma=0 for single interval", 
     Kokkos::View<double***> new_lam_bundles("new_lam_bundles", num_steps, 7, num_bundles);
     std::vector<double> time(num_steps);
 
-    // Fill forward in time (not reversed)
+    // Fill forward in time
     for (int step = 0; step < num_steps; ++step) {
         int row = step * num_sigma;  // sigma=0 row for step
         for (int k = 0; k < 3; ++k) {
@@ -67,11 +67,11 @@ TEST_CASE("Print propagated values for bundle=32, sigma=0 for single interval", 
     settings.c = 4.4246246663455135;
     settings.m0 = 4000.0;
     settings.g0 = 9.81;
-    settings.num_eval_per_step = 200;  // Use exactly 200 steps
+    settings.num_eval_per_step = 200;
     settings.state_size = 7;
     settings.control_size = 7;
 
-    int num_storage_steps = settings.num_eval_per_step + 1;  // 201 points including both endpoints
+    int num_storage_steps = settings.num_eval_per_step + 1;
     Kokkos::View<double****> trajectories_out("trajectories_out", num_bundles, num_sigma, num_storage_steps, 8);
 
     propagate_sigma_trajectories(sigmas_combined, new_lam_bundles, time, Wm, Wc, settings, trajectories_out);
