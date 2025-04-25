@@ -68,8 +68,10 @@ TEST_CASE("Print propagated values for bundle=32, sigma=0 at matching time", "[p
 
     // Defensive bounds checks
     REQUIRE(expected_bundle == 32);
-    REQUIRE(expected_sigma >= 0 && expected_sigma < num_sigma);
-    REQUIRE(step >= 0 && step < num_storage_steps);
+    REQUIRE(expected_sigma >= 0);
+    REQUIRE(expected_sigma < num_sigma);
+    REQUIRE(step >= 0);
+    REQUIRE(step < num_storage_steps);
 
     std::cout << "\nPropagated results for bundle=0 (internal), sigma=" << expected_sigma
               << ", time=" << t_val << ", step=" << step << ":\n";
