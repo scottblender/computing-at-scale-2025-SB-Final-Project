@@ -61,7 +61,7 @@ TEST_CASE("Print propagated values for bundle=32, sigma=0 for single interval", 
     settings.c = 4.4246246663455135;
     settings.m0 = 4000.0;
     settings.g0 = 9.81;
-    settings.num_eval_per_step = 201;
+    settings.num_eval_per_step = 200;
     settings.num_subintervals = 10;
     settings.state_size = 7;
     settings.control_size = 7;
