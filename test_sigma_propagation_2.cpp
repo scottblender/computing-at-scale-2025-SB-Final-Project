@@ -102,5 +102,5 @@ TEST_CASE("Print propagated values for bundle=32, sigma=0 for single interval", 
         }
     }
 
-    SUCCEED("Checked propagated values for Trajectory 32.")
+    SUCCEED("Checked propagated values for Trajectory 32.");
 }
