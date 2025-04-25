@@ -17,7 +17,7 @@ TEST_CASE("Print propagated values for bundle=32, sigma=0 for single interval", 
     load_weights("sigma_weights.csv", Wm, Wc);
 
     const int num_sigma = static_cast<int>(Wm.size());
-    const int num_steps = 1;
+    const int num_steps = 2;
     const int num_bundles = 1;
     const int nsd = 7;
 
