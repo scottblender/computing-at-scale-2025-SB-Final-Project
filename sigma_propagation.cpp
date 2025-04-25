@@ -38,7 +38,6 @@ Eigen::MatrixXd sample_controls_host(
     return samples;
 }
 
-// Integrator with time vector output
 std::pair<Eigen::MatrixXd, Eigen::VectorXd> rk45_integrate_history(
     std::function<void(const Eigen::VectorXd&, Eigen::VectorXd&, double)> ode,
     const Eigen::VectorXd& state0,
@@ -55,7 +54,7 @@ std::pair<Eigen::MatrixXd, Eigen::VectorXd> rk45_integrate_history(
     Eigen::VectorXd k1(dim), k2(dim), k3(dim), k4(dim), k5(dim), k6(dim), dx(dim);
 
     for (int i = 0; i < steps; ++i) {
-        double t = time_vec(i);
+        double t = time_vec(i);  // Use exact linspace point instead of accumulated t
         ode(x, k1, t);
         ode(x + 0.25 * h * k1, k2, t + 0.25 * h);
         ode(x + (3.0 / 32.0) * h * k1 + (9.0 / 32.0) * h * k2, k3, t + (3.0 / 8.0) * h);
