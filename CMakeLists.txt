@@ -41,22 +41,14 @@ target_link_libraries(sigma_points_lib
 )
 
 # --------------------------
-# Sigma Point Library (GPU version)
+# Sigma Point Library (GPU version - header only)
 # --------------------------
-add_library(sigma_points_gpu_lib
-    GPU/src/sigma_propagation_gpu.cpp
-    GPU/src/sigma_points_kokkos_gpu.cpp
-    GPU/src/rv2mee_gpu.cpp
-    GPU/src/mee2rv_gpu.cpp
-    GPU/src/odefunc_gpu.cpp
-    GPU/src/l1_dot_2B_propul_gpu.cpp
-    GPU/src/lm_dot_2B_propul_gpu.cpp
-)
-target_include_directories(sigma_points_gpu_lib PUBLIC ${CMAKE_SOURCE_DIR})
+add_library(sigma_points_gpu_lib INTERFACE)  
+target_include_directories(sigma_points_gpu_lib INTERFACE ${CMAKE_SOURCE_DIR})
 target_link_libraries(sigma_points_gpu_lib
-    PUBLIC
+    INTERFACE
     Kokkos::kokkos
-    Eigen3::Eigen   
+    Eigen3::Eigen
 )
 
 # --------------------------
