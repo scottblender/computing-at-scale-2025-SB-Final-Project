@@ -2,17 +2,14 @@
 #define ODEFUNC_GPU_HPP
 
 #include <Kokkos_Core.hpp>
+#include "propagation_settings.hpp"  // make sure PropagationSettings struct is available
 
 KOKKOS_INLINE_FUNCTION
 void odefunc(
-    double t,
-    const double* x,     // input state, size 14
-    double* dx,          // output derivative, size 14
-    double mu,
-    double F,
-    double c,
-    double m0,
-    double g0
+    const double* x,        // input state, size 14
+    double* dx,             // output derivative, size 14
+    double t,               // current time
+    const PropagationSettings& settings  // settings (mu, F, c, m0, g0)
 );
 
 #endif // ODEFUNC_GPU_HPP

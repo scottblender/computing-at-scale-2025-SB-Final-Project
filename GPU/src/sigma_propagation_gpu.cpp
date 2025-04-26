@@ -89,8 +89,8 @@ void propagate_sigma_trajectories(
                 }
                 double mass = sigmas_combined(i, sigma, 6, j);
 
-                double mee[6], dummy[3];
-                rv2mee(r, v, settings.mu, mee, dummy);
+                double mee[6];
+                rv2mee(r, v, settings.mu, mee);
 
                 double state[14];
                 for (int k = 0; k < 6; ++k) state[k] = mee[k];
