@@ -27,11 +27,6 @@ find_package(Catch2 3 REQUIRED)
 add_library(sigma_points_lib
     CPU/src/sigma_points_kokkos.cpp
     CPU/src/sigma_propagation.cpp
-    CPU/src/rv2mee.cpp
-    CPU/src/mee2rv.cpp
-    CPU/src/odefunc.cpp
-    CPU/src/l1_dot_2B_propul.cpp
-    CPU/src/lm_dot_2B_propul.cpp
 )
 target_include_directories(sigma_points_lib PUBLIC ${CMAKE_SOURCE_DIR})
 target_link_libraries(sigma_points_lib
@@ -41,12 +36,17 @@ target_link_libraries(sigma_points_lib
 )
 
 # --------------------------
-# Sigma Point Library (GPU version - header only)
+# Sigma Point Library (GPU version)
 # --------------------------
-add_library(sigma_points_gpu_lib INTERFACE)  
-target_include_directories(sigma_points_gpu_lib INTERFACE ${CMAKE_SOURCE_DIR})
+add_library(sigma_points_gpu_lib
+    GPU/src/sigma_propagation_gpu.cpp
+    GPU/src/sigma_points_kokkos_gpu.cpp
+    GPU/src/sample_controls_host.cpp
+    GPU/src/compute_transform_matrix.cpp
+)
+target_include_directories(sigma_points_gpu_lib PUBLIC ${CMAKE_SOURCE_DIR})
 target_link_libraries(sigma_points_gpu_lib
-    INTERFACE
+    PUBLIC
     Kokkos::kokkos
     Eigen3::Eigen
 )
