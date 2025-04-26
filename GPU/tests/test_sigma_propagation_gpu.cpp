@@ -12,7 +12,7 @@
 #include "../include/compute_transform_matrix.hpp"   
 
 TEST_CASE("Print propagated values for bundle=32, sigma=0 for single interval [GPU-compatible]", "[propagation]") {
-    Eigen::MatrixXd initial_data = load_csv("initial_bundle_32.csv");
+    Eigen::MatrixXd initial_data = load_csv("initial_bundle_32.csv", 16);
 
     std::vector<double> Wm, Wc;
     load_weights("sigma_weights.csv", Wm, Wc);
