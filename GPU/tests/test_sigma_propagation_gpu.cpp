@@ -1,4 +1,5 @@
 #include <catch2/catch_test_macros.hpp>
+#include <catch2/matchers/catch_matchers_floating_point.hpp>
 #include <Kokkos_Core.hpp>
 #include <Eigen/Dense>
 #include <vector>
@@ -11,7 +12,7 @@
 #include "../include/sample_controls_host.hpp"  
 #include "../include/compute_transform_matrix.hpp"   
 
-TEST_CASE("Print propagated values for bundle=32, sigma=0 for single interval [GPU-compatible]", "[propagation]") {
+TEST_CASE("Check propagated values for bundle=32, sigma=0 for single interval [GPU-compatible]", "[propagation]") {
     // Load initial CSV (fixed)
     auto initial_data_vec = load_csv("initial_bundle_32.csv", 16);
     const int num_rows = static_cast<int>(initial_data_vec.size());
@@ -61,7 +62,7 @@ TEST_CASE("Print propagated values for bundle=32, sigma=0 for single interval [G
 
     double alpha = 1.7215, beta = 2.0, kappa = 3.0 - nsd;
 
-    // Correct: Flatten P_pos and P_vel into raw arrays
+    // Flatten P_pos and P_vel into raw arrays
     Eigen::MatrixXd P_pos = 0.01 * Eigen::MatrixXd::Identity(3, 3);
     Eigen::MatrixXd P_vel = 0.0001 * Eigen::MatrixXd::Identity(3, 3);
     double P_mass = 0.0001;
@@ -130,16 +131,34 @@ TEST_CASE("Print propagated values for bundle=32, sigma=0 for single interval [G
     auto host_traj = Kokkos::create_mirror_view(trajectories_out);
     Kokkos::deep_copy(host_traj, trajectories_out);
 
-    // === Print the results ===
+    // === Load Expected Data ===
+    auto expected_data_vec = load_csv("expected_trajectories_bundle_32.csv", 10); // bundle, sigma, x, y, z, vx, vy, vz, mass, time
+    Eigen::MatrixXd expected_data(expected_data_vec.size(), expected_data_vec[0].size());
+    for (int i = 0; i < expected_data.rows(); ++i)
+        for (int j = 0; j < expected_data.cols(); ++j)
+            expected_data(i, j) = expected_data_vec[i][j];
+
+    // === Check results ===
     int sigma_to_print = 0;
+    double tol = 1e-1;
+
     for (int step = 0; step < num_storage_steps; ++step) {
         std::cout << "\nStep " << step
                   << " at time = " << host_traj(0, sigma_to_print, step, 7) << '\n';
+
         for (int d = 0; d < 7; ++d) {
-            double value = host_traj(0, sigma_to_print, step, d);
-            std::cout << "  Dim[" << d << "] = " << value << '\n';
+            double actual = host_traj(0, sigma_to_print, step, d);
+            double expected = expected_data(step, d + 2);  // Offset by 2
+            std::cout << "  Dim[" << d << "] = " << actual << " (expected " << expected << ")\n";
+            CHECK_THAT(actual, Catch::Matchers::WithinAbs(expected, tol));
         }
+
+        // Check time
+        double actual_time = host_traj(0, sigma_to_print, step, 7);
+        double expected_time = expected_data(step, 9);  // time is in column 9
+        std::cout << "  Time     = " << actual_time << " (expected " << expected_time << ")\n";
+        CHECK_THAT(actual_time, Catch::Matchers::WithinAbs(expected_time, tol));
     }
 
-    SUCCEED("Printed propagated values for Trajectory 32.");
+    SUCCEED("Checked propagated values for Trajectory 32.");
 }
