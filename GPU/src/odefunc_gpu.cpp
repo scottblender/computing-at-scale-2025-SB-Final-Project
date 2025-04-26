@@ -26,7 +26,6 @@ void odefunc(
     }
 
     const double s = 1.0 + h * h + k * k;
-    const double alpha = h * h - k * k;
     const double C1 = sqrt(p / settings.mu);
     const double C2 = 1.0 / w;
     const double C3 = h * SinL - k * CosL;
@@ -72,18 +71,18 @@ void odefunc(
     // lam_dot
     double lam_dot[6];
     l1_dot_2B_propul(
-        f, g, h, k, L, p, settings.F, settings.g0,
-        lam_f, lam_g, lam_h, lam_k, lam_L, lam_p, m, settings.m0, settings.mu,
-        lam_dot
+        lam_dot,                // <- output first
+        settings.F, f, g, h, k, L, p, settings.F, settings.g0,
+        lam_f, lam_g, lam_h, lam_k, lam_L, lam_p, m, settings.m0, settings.mu
     );
 
     for (int i = 0; i < 6; ++i) {
-        dx[7+i] = lam_dot[i];
+        dx[7 + i] = lam_dot[i];
     }
 
     // lam_m_dot
     dx[13] = lm_dot_2B_propul(
-        f, g, h, k, L, p, settings.F, settings.g0,
+        settings.F, f, g, h, k, L, p, settings.F, settings.g0,
         lam_f, lam_g, lam_h, lam_k, lam_L, lam_p, m, settings.m0, settings.mu
     );
 }

@@ -2,16 +2,7 @@
 #define SIGMA_PROPAGATION_GPU_HPP
 
 #include <Kokkos_Core.hpp>
-
-struct PropagationSettings {
-    double mu;
-    double F;
-    double c;
-    double m0;
-    double g0;
-    int num_subintervals;
-    int num_eval_per_step;
-};
+#include "propagation_settings.hpp"
 
 using View4D = Kokkos::View<double****>;
 using View3D = Kokkos::View<double***>;
