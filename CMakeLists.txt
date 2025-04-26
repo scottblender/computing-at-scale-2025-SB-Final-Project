@@ -44,7 +44,7 @@ target_link_libraries(sigma_points_lib
 # Sigma Point Library (GPU version)
 # --------------------------
 add_library(sigma_points_gpu_lib
-    GPU/src/sigma_propagation_gpu.cpp  # <-- your full GPU compatible version
+    GPU/src/sigma_propagation_gpu.cpp
     GPU/src/sigma_points_kokkos_gpu.cpp
     GPU/src/rv2mee_gpu.cpp
     GPU/src/mee2rv_gpu.cpp
@@ -56,6 +56,7 @@ target_include_directories(sigma_points_gpu_lib PUBLIC ${CMAKE_SOURCE_DIR})
 target_link_libraries(sigma_points_gpu_lib
     PUBLIC
     Kokkos::kokkos
+    Eigen3::Eigen   
 )
 
 # --------------------------
@@ -109,4 +110,3 @@ target_link_libraries(test_sigma_propagation_gpu
     sigma_points_gpu_lib
     Catch2::Catch2
 )
-
