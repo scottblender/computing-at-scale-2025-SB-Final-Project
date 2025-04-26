@@ -22,11 +22,16 @@ find_package(Eigen3 REQUIRED)
 find_package(Catch2 3 REQUIRED)
 
 # --------------------------
-# Sigma Point Library (CPU version)
+# Sigma Point Library (CPU version — FULL .cpp + .hpp like before)
 # --------------------------
 add_library(sigma_points_lib
     CPU/src/sigma_points_kokkos.cpp
     CPU/src/sigma_propagation.cpp
+    CPU/src/rv2mee.cpp
+    CPU/src/mee2rv.cpp
+    CPU/src/odefunc.cpp
+    CPU/src/l1_dot_2B_propul.cpp
+    CPU/src/lm_dot_2B_propul.cpp
 )
 target_include_directories(sigma_points_lib PUBLIC ${CMAKE_SOURCE_DIR})
 target_link_libraries(sigma_points_lib
@@ -36,7 +41,7 @@ target_link_libraries(sigma_points_lib
 )
 
 # --------------------------
-# Sigma Point Library (GPU version)
+# Sigma Point Library (GPU version — mix of .cpp + header-only)
 # --------------------------
 add_library(sigma_points_gpu_lib
     GPU/src/sigma_propagation_gpu.cpp
