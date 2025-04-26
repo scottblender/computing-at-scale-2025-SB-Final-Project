@@ -12,8 +12,19 @@
 #include "../include/compute_transform_matrix.hpp"   
 
 TEST_CASE("Print propagated values for bundle=32, sigma=0 for single interval [GPU-compatible]", "[propagation]") {
-    Eigen::MatrixXd initial_data = load_csv("initial_bundle_32.csv", 16);
+    // Load initial CSV (fixed)
+    auto initial_data_vec = load_csv("initial_bundle_32.csv", 16);
+    const int num_rows = static_cast<int>(initial_data_vec.size());
+    const int num_cols = static_cast<int>(initial_data_vec[0].size());
 
+    Eigen::MatrixXd initial_data(num_rows, num_cols);
+    for (int i = 0; i < num_rows; ++i) {
+        for (int j = 0; j < num_cols; ++j) {
+            initial_data(i,j) = initial_data_vec[i][j];
+        }
+    }
+
+    // Load weights
     std::vector<double> Wm, Wc;
     load_weights("sigma_weights.csv", Wm, Wc);
 
@@ -40,9 +51,17 @@ TEST_CASE("Print propagated values for bundle=32, sigma=0 for single interval [G
     }
 
     Kokkos::View<double****> sigmas_combined("sigmas_combined", num_bundles, num_sigma, 7, num_steps);
-    std::vector<int> time_steps = {0, 1};
+
+    // Correct: make a Kokkos::View for time_steps
+    Kokkos::View<int*> time_steps_view("time_steps_view", num_steps);
+    auto time_steps_host = Kokkos::create_mirror_view(time_steps_view);
+    for (int i = 0; i < num_steps; ++i)
+        time_steps_host(i) = i;
+    Kokkos::deep_copy(time_steps_view, time_steps_host);
 
     double alpha = 1.7215, beta = 2.0, kappa = 3.0 - nsd;
+
+    // Correct: Flatten P_pos and P_vel into raw arrays
     Eigen::MatrixXd P_pos = 0.01 * Eigen::MatrixXd::Identity(3, 3);
     Eigen::MatrixXd P_vel = 0.0001 * Eigen::MatrixXd::Identity(3, 3);
     double P_mass = 0.0001;
@@ -57,15 +76,7 @@ TEST_CASE("Print propagated values for bundle=32, sigma=0 for single interval [G
     generate_sigma_points_kokkos(
         nsd, alpha, beta, kappa,
         P_pos_flat, P_vel_flat, P_mass,
-        time_steps, r_bundles, v_bundles, m_bundles,
-        sigmas_combined
-    );
-    double P_mass = 0.0001;
-
-    generate_sigma_points_kokkos(
-        nsd, alpha, beta, kappa,
-        P_pos, P_vel, P_mass,
-        time_steps, r_bundles, v_bundles, m_bundles,
+        time_steps_view, r_bundles, v_bundles, m_bundles,
         sigmas_combined
     );
 
@@ -81,10 +92,11 @@ TEST_CASE("Print propagated values for bundle=32, sigma=0 for single interval [G
     int num_storage_steps = settings.num_eval_per_step;
     Kokkos::View<double****> trajectories_out("trajectories_out", num_bundles, num_sigma, num_storage_steps, 8);
 
-    // Prepare random controls and transform
+    // Random controls and transform
     const int num_random_samples = (num_steps - 1) * (settings.num_subintervals - 1);
     Kokkos::View<double**> random_controls("random_controls", num_random_samples, 7);
     Kokkos::View<double**> transform("transform", 7, 7);
+
     sample_controls_host(num_random_samples, random_controls);
     compute_transform_matrix(transform);
 
