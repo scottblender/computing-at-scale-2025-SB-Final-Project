@@ -7,10 +7,12 @@
 
 #include "../include/csv_loader_gpu.hpp"           
 #include "../include/sigma_points_kokkos_gpu.hpp"    
-#include "../include/sigma_propagation_gpu.hpp"      
+#include "../include/sigma_propagation_gpu.hpp" 
+#include "../include/sample_controls_host.hpp"  
+#include "../include/compute_transform_matrix.hpp"   
 
 TEST_CASE("Print propagated values for bundle=32, sigma=0 for single interval [GPU-compatible]", "[propagation]") {
-    Eigen::MatrixXd initial_data = load_csv_matrix("initial_bundle_32.csv");
+    Eigen::MatrixXd initial_data = load_csv("initial_bundle_32.csv");
 
     std::vector<double> Wm, Wc;
     load_weights("sigma_weights.csv", Wm, Wc);
@@ -43,6 +45,21 @@ TEST_CASE("Print propagated values for bundle=32, sigma=0 for single interval [G
     double alpha = 1.7215, beta = 2.0, kappa = 3.0 - nsd;
     Eigen::MatrixXd P_pos = 0.01 * Eigen::MatrixXd::Identity(3, 3);
     Eigen::MatrixXd P_vel = 0.0001 * Eigen::MatrixXd::Identity(3, 3);
+    double P_mass = 0.0001;
+
+    double P_pos_flat[9], P_vel_flat[9];
+    for (int i = 0; i < 3; ++i)
+        for (int j = 0; j < 3; ++j) {
+            P_pos_flat[i*3 + j] = P_pos(i, j);
+            P_vel_flat[i*3 + j] = P_vel(i, j);
+        }
+
+    generate_sigma_points_kokkos(
+        nsd, alpha, beta, kappa,
+        P_pos_flat, P_vel_flat, P_mass,
+        time_steps, r_bundles, v_bundles, m_bundles,
+        sigmas_combined
+    );
     double P_mass = 0.0001;
 
     generate_sigma_points_kokkos(
