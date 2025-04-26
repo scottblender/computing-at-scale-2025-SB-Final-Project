@@ -70,11 +70,18 @@ void odefunc(
     // mdot
     dx[6] = -settings.F / (settings.m0 * settings.c);
 
-    // lam_dot (CALL l1_dot properly)
+    // Define capital letter versions for l1 and lm functions
+    const double F = f;
+    const double G = g;
+    const double H = h;
+    const double K = k;
+    const double P = p;
+
+    // lam_dot
     double lam_dot[6];
     l1_dot_2B_propul(
-        lam_dot,   // output first
-        f, g, h, k, L, p, settings.F, settings.g0,
+        lam_dot,
+        F, G, H, K, L, P, settings.F, settings.g0,
         lam_f, lam_g, lam_h, lam_k, lam_L, lam_p,
         m, settings.m0, settings.mu
     );
@@ -85,7 +92,7 @@ void odefunc(
 
     // lam_m_dot
     dx[13] = lm_dot_2B_propul(
-        f, g, h, k, L, p, settings.F, settings.g0,
+        F, G, H, K, L, P, settings.F, settings.g0,
         lam_f, lam_g, lam_h, lam_k, lam_L, lam_p,
         m, settings.m0, settings.mu
     );
