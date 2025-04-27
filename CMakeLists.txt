@@ -107,3 +107,15 @@ target_link_libraries(test_sigma_propagation_gpu
     sigma_points_gpu_lib
     Catch2::Catch2
 )
+
+# --------------------------
+# Benchmark executable: Timing Serial/OpenMP/CUDA (NEW)
+# --------------------------
+add_executable(runtime_vs_timesteps_benchmark
+    GPU/src/main.cpp  # uses new main.cpp you wrote with --benchmark option
+)
+target_link_libraries(runtime_vs_timesteps_benchmark
+    PRIVATE
+    sigma_points_gpu_lib
+    Catch2::Catch2
+)

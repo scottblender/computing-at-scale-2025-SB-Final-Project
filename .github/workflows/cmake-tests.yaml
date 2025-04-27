@@ -40,19 +40,35 @@ jobs:
         run: |
           cd ${{ github.workspace }}/CPU/build
           make
-          ./test_sigma_points  --reporter compact --success
+          ./test_sigma_points --reporter compact --success
+
       - name: Run Sigma Point Propagation Unit Test (CPU)
         run: |
           cd ${{ github.workspace }}/CPU/build
           make
-          ./test_sigma_propagation  --reporter compact --success
+          ./test_sigma_propagation --reporter compact --success
+
       - name: Run Sigma Point Propagation Test on Real Data (CPU)
         run: |
           cd ${{ github.workspace }}/CPU/build
           make
-          ./test_sigma_propagation_cpu  --reporter compact --success
+          ./test_sigma_propagation_cpu --reporter compact --success
+
       - name: Run Sigma Point Propagation Test on Real Data (GPU)
         run: |
           cd ${{ github.workspace }}/GPU/build
           make
-          ./test_sigma_propagation_gpu  --reporter compact --success
+          ./test_sigma_propagation_gpu --reporter compact --success
+
+      - name: Run Runtime vs Timesteps Benchmark (GPU)
+        run: |
+          cd ${{ github.workspace }}/GPU/build
+          make
+          ./runtime_vs_timesteps_benchmark --benchmark
+      
+      - name: Upload benchmark CSV artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: runtime-vs-timesteps-${{ matrix.backend }}
+          path: |
+            ${{ github.workspace }}/GPU/build/runtime_vs_timesteps_${{ matrix.backend }}.csv
