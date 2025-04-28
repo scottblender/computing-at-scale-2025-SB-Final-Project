@@ -9,7 +9,7 @@ struct SigmaPointFunctor {
     View2D m_bundles;
     View4D sigmas_out;
     ViewMatrixDevice L_device; // NOW correctly device-resident
-    Kokkos::View<int*> time_steps;
+    Kokkos::View<int*>& time_steps;
     int nsd;
     double scaling_factor;
 
