@@ -16,6 +16,8 @@
 #include "../include/compute_transform_matrix.hpp"
 #include "../include/rv2mee_gpu.hpp"
 
+using Device4D = Kokkos::View<double****, Kokkos::DefaultExecutionSpace::memory_space>;
+
 inline double run_propagation_test(int num_steps, const PropagationSettings& settings) {
     double elapsed = 0.0;
 
@@ -116,7 +118,8 @@ inline double run_propagation_test(int num_steps, const PropagationSettings& set
             Kokkos::deep_copy(time_view, time_host);
 
             // Generate sigma points for this interval
-            Kokkos::View<double****> sigmas_combined("sigmas_combined", num_bundles, num_sigma, nsd, 2);
+            Device4D sigmas_combined("sigmas_combined", num_bundles, num_sigma, nsd, 2);
+
             double P_mass = 0.0001;
             double P_pos_flat[9] = {0.01,0,0,0,0.01,0,0,0,0.01};
             double P_vel_flat[9] = {0.0001,0,0,0,0.0001,0,0,0,0.0001};
@@ -130,7 +133,7 @@ inline double run_propagation_test(int num_steps, const PropagationSettings& set
                 static_cast<const Kokkos::View<double**>&>(m_bundles),
                 static_cast<const Kokkos::View<double****>&>(sigmas_combined)
             );
-            
+
             // Propagate for this single interval
             auto random_controls_sub = Kokkos::subview(
                 random_controls,
