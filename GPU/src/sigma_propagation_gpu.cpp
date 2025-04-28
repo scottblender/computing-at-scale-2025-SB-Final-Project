@@ -43,7 +43,7 @@ void rk45_step(
 
         for (int i = 0; i < 14; ++i)
             dx[i] = h * ((16.0/135.0)*k1[i] + (6656.0/12825.0)*k3[i] + (28561.0/56430.0)*k4[i]
-                     - (9.0/50.0)*k5[i] + (2.0/55.0)*k6[i]);
+                       - (9.0/50.0)*k5[i] + (2.0/55.0)*k6[i]);
 
         for (int i = 0; i < 14; ++i) x[i] += dx[i];
     }
@@ -97,6 +97,7 @@ void propagate_sigma_trajectories(
                 state[6] = mass;
                 for (int k = 0; k < 7; ++k) state[7+k] = lam_host(j, k, i);
 
+                int out_idx = 0;
                 for (int sub = 0; sub < num_sub; ++sub) {
                     double dt = (time_host(j+1) - time_host(j)) / num_sub;
                     double t0 = time_host(j) + dt * sub;
@@ -119,7 +120,7 @@ void propagate_sigma_trajectories(
                     for (int n = 0; n < evals; ++n) {
                         double rout[3], vout[3];
                         mee2rv(&history[n][0], settings.mu, rout, vout);
-                        int idx = j * settings.num_eval_per_step + n;  // ✅ Fixed indexing
+                        int idx = j * settings.num_eval_per_step + out_idx++;
                         for (int k = 0; k < 3; ++k) {
                             traj_host(i, sigma, idx, k) = rout[k];
                             traj_host(i, sigma, idx, k+3) = vout[k];
@@ -128,7 +129,6 @@ void propagate_sigma_trajectories(
                         traj_host(i, sigma, idx, 7) = tvals[n];
                     }
 
-                    // Update state for next subinterval starting point
                     for (int k = 0; k < 14; ++k)
                         state[k] = history[evals - 1][k];
                 }
