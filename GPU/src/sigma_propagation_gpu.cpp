@@ -3,6 +3,7 @@
 #include "../include/rv2mee_gpu.hpp"
 #include "../include/odefunc_gpu.hpp"
 
+// The RK45 step function remains the same but needs KOKKOS_INLINE_FUNCTION to be callable from device
 KOKKOS_INLINE_FUNCTION
 void rk45_step(
     void (*odefunc)(const double*, double*, double, const PropagationSettings&),
@@ -49,6 +50,102 @@ void rk45_step(
     }
 }
 
+// Functor to handle a single bundle/sigma pair propagation on the device
+struct PropagateSigmaFunctor {
+    View4D sigmas_combined;
+    View3D lam_bundles;
+    View1D time;
+    View2D random_controls;
+    View2D transform;
+    View4D trajectories_out;
+    PropagationSettings settings;
+    int num_sigma;
+    int num_steps;
+    int num_sub;
+    int evals;
+    
+    PropagateSigmaFunctor(
+        const View4D& sigmas,
+        const View3D& lam,
+        const View1D& t,
+        const View2D& rand,
+        const View2D& trans,
+        const PropagationSettings& set,
+        View4D& traj
+    ) : sigmas_combined(sigmas), lam_bundles(lam), time(t),
+        random_controls(rand), transform(trans),
+        settings(set), trajectories_out(traj) {
+        num_sigma = sigmas_combined.extent(1);
+        num_steps = sigmas_combined.extent(3);
+        num_sub = settings.num_subintervals;
+        evals = settings.num_eval_per_step / num_sub;
+    }
+    
+    KOKKOS_INLINE_FUNCTION
+    void operator()(const int idx) const {
+        // Calculate bundle/sigma indices from flat index
+        int bundle_idx = idx / num_sigma;
+        int sigma_idx = idx % num_sigma;
+        
+        // Process this bundle/sigma pair
+        for (int j = 0; j < num_steps - 1; ++j) {
+            double r[3], v[3];
+            for (int k = 0; k < 3; ++k) {
+                r[k] = sigmas_combined(bundle_idx, sigma_idx, k, j);
+                v[k] = sigmas_combined(bundle_idx, sigma_idx, k+3, j);
+            }
+            double mass = sigmas_combined(bundle_idx, sigma_idx, 6, j);
+
+            double mee[6];
+            rv2mee(r, v, settings.mu, mee);
+
+            double state[14];
+            for (int k = 0; k < 6; ++k) state[k] = mee[k];
+            state[6] = mass;
+            for (int k = 0; k < 7; ++k) state[7+k] = lam_bundles(j, k, bundle_idx);
+
+            int out_idx = 0;
+            int rand_idx = j * (num_sub - 1);
+            
+            for (int sub = 0; sub < num_sub; ++sub) {
+                double dt = (time(j+1) - time(j)) / num_sub;
+                double t0 = time(j) + dt * sub;
+                double t1 = time(j) + dt * (sub + 1);
+
+                if (sub > 0) {
+                    for (int k = 0; k < 7; ++k) {
+                        double dz = 0.0;
+                        for (int d = 0; d < 7; ++d)
+                            dz += transform(d, k) * random_controls(rand_idx, d);
+                        state[7 + k] += dz;
+                    }
+                    rand_idx++;
+                }
+
+                double history[200][14];
+                double tvals[200];
+                rk45_step(odefunc, state, t0, t1, evals, settings, history, tvals);
+
+                for (int n = 0; n < evals; ++n) {
+                    double rout[3], vout[3];
+                    mee2rv(&history[n][0], settings.mu, rout, vout);
+                    int idx = j * settings.num_eval_per_step + out_idx++;
+                    for (int k = 0; k < 3; ++k) {
+                        trajectories_out(bundle_idx, sigma_idx, idx, k) = rout[k];
+                        trajectories_out(bundle_idx, sigma_idx, idx, k+3) = vout[k];
+                    }
+                    trajectories_out(bundle_idx, sigma_idx, idx, 6) = history[n][6];
+                    trajectories_out(bundle_idx, sigma_idx, idx, 7) = tvals[n];
+                }
+
+                for (int k = 0; k < 14; ++k)
+                    state[k] = history[evals - 1][k];
+            }
+        }
+    }
+};
+
+// The main function now launches the CUDA kernel
 void propagate_sigma_trajectories(
     const View4D& sigmas_combined,
     const View3D& new_lam_bundles,
@@ -60,81 +157,24 @@ void propagate_sigma_trajectories(
     const PropagationSettings& settings,
     View4D& trajectories_out
 ) {
-    auto lam_host = Kokkos::create_mirror_view(new_lam_bundles);
-    auto traj_host = Kokkos::create_mirror_view(trajectories_out);
-    auto time_host = Kokkos::create_mirror_view(time);
-    auto rand_host = Kokkos::create_mirror_view(random_controls);
-    auto transform_host = Kokkos::create_mirror_view(transform);
-
-    Kokkos::deep_copy(lam_host, new_lam_bundles);
-    Kokkos::deep_copy(time_host, time);
-    Kokkos::deep_copy(rand_host, random_controls);
-    Kokkos::deep_copy(transform_host, transform);
-
     int num_bundles = sigmas_combined.extent(0);
     int num_sigma = sigmas_combined.extent(1);
-    int num_steps = sigmas_combined.extent(3);
-    int num_sub = settings.num_subintervals;
-    int evals = settings.num_eval_per_step / num_sub;
-
-    int rand_idx = 0;
-
-    for (int i = 0; i < num_bundles; ++i) {
-        for (int sigma = 0; sigma < num_sigma; ++sigma) {
-            for (int j = 0; j < num_steps - 1; ++j) {
-                double r[3], v[3];
-                for (int k = 0; k < 3; ++k) {
-                    r[k] = sigmas_combined(i, sigma, k, j);
-                    v[k] = sigmas_combined(i, sigma, k+3, j);
-                }
-                double mass = sigmas_combined(i, sigma, 6, j);
-
-                double mee[6];
-                rv2mee(r, v, settings.mu, mee);
-
-                double state[14];
-                for (int k = 0; k < 6; ++k) state[k] = mee[k];
-                state[6] = mass;
-                for (int k = 0; k < 7; ++k) state[7+k] = lam_host(j, k, i);
-
-                int out_idx = 0;
-                for (int sub = 0; sub < num_sub; ++sub) {
-                    double dt = (time_host(j+1) - time_host(j)) / num_sub;
-                    double t0 = time_host(j) + dt * sub;
-                    double t1 = time_host(j) + dt * (sub + 1);
-
-                    if (sub > 0) {
-                        for (int k = 0; k < 7; ++k) {
-                            double dz = 0.0;
-                            for (int d = 0; d < 7; ++d)
-                                dz += transform_host(d, k) * rand_host(rand_idx, d);
-                            state[7 + k] += dz;
-                        }
-                        rand_idx++;
-                    }
-
-                    double history[200][14];
-                    double tvals[200];
-                    rk45_step(odefunc, state, t0, t1, evals, settings, history, tvals);
-
-                    for (int n = 0; n < evals; ++n) {
-                        double rout[3], vout[3];
-                        mee2rv(&history[n][0], settings.mu, rout, vout);
-                        int idx = j * settings.num_eval_per_step + out_idx++;
-                        for (int k = 0; k < 3; ++k) {
-                            traj_host(i, sigma, idx, k) = rout[k];
-                            traj_host(i, sigma, idx, k+3) = vout[k];
-                        }
-                        traj_host(i, sigma, idx, 6) = history[n][6];
-                        traj_host(i, sigma, idx, 7) = tvals[n];
-                    }
-
-                    for (int k = 0; k < 14; ++k)
-                        state[k] = history[evals - 1][k];
-                }
-            }
-        }
-    }
-
-    Kokkos::deep_copy(trajectories_out, traj_host);
+    int total_work = num_bundles * num_sigma;
+    
+    // Create the functor and launch the kernel
+    PropagateSigmaFunctor functor(
+        sigmas_combined,
+        new_lam_bundles,
+        time,
+        random_controls,
+        transform,
+        settings,
+        trajectories_out
+    );
+    
+    // Use Kokkos to launch the CUDA kernel
+    Kokkos::parallel_for("PropagateSigmas", total_work, functor);
+    
+    // Ensure all GPU work is complete before returning
+    Kokkos::fence();
 }
