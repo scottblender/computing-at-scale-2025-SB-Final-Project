@@ -10,6 +10,7 @@
 
 #include "../include/sigma_points_kokkos_gpu.hpp"
 #include "../include/sigma_propagation_gpu.hpp"
+#include "../include/csv_loader_gpu.hpp"
 #include "../include/sample_controls_host.hpp"
 #include "../include/compute_transform_matrix.hpp"
 #include "../include/rv2mee_gpu.hpp"
@@ -24,67 +25,87 @@ inline double run_propagation_test(int num_steps, const PropagationSettings& set
     {
         const int num_bundles = 1;
         const int nsd = 7;
-        const int num_sigma = 2 * nsd + 1; // 15 sigma points
+        const int num_sigma = 2 * nsd + 1;  // 15 sigma points
+        const int num_intervals = num_steps - 1; // intervals = steps - 1
 
-        // Dummy initializations
+        if (num_steps < 2) {
+            std::cerr << "[ERROR] num_steps must be >= 2!\n";
+            return -1.0;
+        }
+
+        // Load initial_bundle_32.csv
+        auto initial_data_vec = load_csv("initial_bundle_32.csv", 16);
+        const int total_rows = static_cast<int>(initial_data_vec.size());
+        if (num_steps > total_rows) {
+            std::cerr << "[ERROR] Not enough rows in initial_bundle_32.csv for requested num_steps.\n";
+            return -1.0;
+        }
+
+        // Fill initial data
+        Eigen::MatrixXd initial_data(num_steps, 16);
+        for (int i = 0; i < num_steps; ++i) {
+            for (int j = 0; j < 16; ++j) {
+                initial_data(i, j) = initial_data_vec[i][j];
+            }
+        }
+
         Kokkos::View<double***> r_bundles("r_bundles", num_bundles, num_steps, 3);
         Kokkos::View<double***> v_bundles("v_bundles", num_bundles, num_steps, 3);
         Kokkos::View<double**> m_bundles("m_bundles", num_bundles, num_steps);
         Kokkos::View<double***> new_lam_bundles("new_lam_bundles", num_steps, nsd, num_bundles);
-        Kokkos::deep_copy(new_lam_bundles, 0.0);
 
-        auto r_host = Kokkos::create_mirror_view(r_bundles);
-        auto v_host = Kokkos::create_mirror_view(v_bundles);
-        auto m_host = Kokkos::create_mirror_view(m_bundles);
+        std::vector<double> time_vec(num_steps);
+
         for (int step = 0; step < num_steps; ++step) {
-            r_host(0, step, 0) = 100.0 + step;
-            r_host(0, step, 1) = 200.0 + step;
-            r_host(0, step, 2) = 300.0 + step;
-            v_host(0, step, 0) = 0.1 * step;
-            v_host(0, step, 1) = 0.2 * step;
-            v_host(0, step, 2) = 0.3 * step;
-            m_host(0, step) = 1.0;
+            for (int k = 0; k < 3; ++k) {
+                r_bundles(0, step, k) = initial_data(step, 1 + k);
+                v_bundles(0, step, k) = initial_data(step, 4 + k);
+            }
+            m_bundles(0, step) = initial_data(step, 7);
+            for (int k = 0; k < 7; ++k) {
+                new_lam_bundles(step, k, 0) = initial_data(step, 8 + k);
+            }
+            time_vec[step] = initial_data(step, 0);
         }
-        Kokkos::deep_copy(r_bundles, r_host);
-        Kokkos::deep_copy(v_bundles, v_host);
-        Kokkos::deep_copy(m_bundles, m_host);
 
-        // --- Time Views
-        Kokkos::View<double*> time_view("time_view", num_steps);
-        auto time_host = Kokkos::create_mirror_view(time_view);
-        for (int i = 0; i < num_steps; ++i)
-            time_host(i) = static_cast<double>(i);
-        Kokkos::deep_copy(time_view, time_host);
+        // Sigma points
+        Kokkos::View<double****> sigmas_combined("sigmas_combined", num_bundles, num_sigma, nsd, num_steps);
 
         Kokkos::View<int*> time_steps_view("time_steps_view", num_steps);
         auto time_steps_host = Kokkos::create_mirror_view(time_steps_view);
-        for (int i = 0; i < num_steps; ++i)
+        for (int i = 0; i < num_steps; ++i) {
             time_steps_host(i) = i;
+        }
         Kokkos::deep_copy(time_steps_view, time_steps_host);
 
-        // --- Sigma Point Generation
         double alpha = 1.7215, beta = 2.0, kappa = 3.0 - nsd;
         double P_mass = 0.0001;
-        double P_pos_flat[9] = {0.01, 0, 0, 0, 0.01, 0, 0, 0, 0.01};
-        double P_vel_flat[9] = {0.0001, 0, 0, 0, 0.0001, 0, 0, 0, 0.0001};
+        double P_pos_flat[9] = {0.01,0,0,0,0.01,0,0,0,0.01};
+        double P_vel_flat[9] = {0.0001,0,0,0,0.0001,0,0,0,0.0001};
 
-        Kokkos::View<double****> sigmas_combined("sigmas_combined", num_bundles, num_sigma, nsd, num_steps);
         generate_sigma_points_kokkos(
             nsd, alpha, beta, kappa,
             P_pos_flat, P_vel_flat, P_mass,
-            time_steps_view,
-            r_bundles, v_bundles, m_bundles,
+            time_steps_view, r_bundles, v_bundles, m_bundles,
             sigmas_combined
         );
 
-        // --- Random Controls + Transform
-        const int num_random_samples = std::max(1, (num_steps - 1) * (settings.num_subintervals - 1));
+        // Random controls
+        const int num_random_samples = num_intervals * (settings.num_subintervals - 1);
         Kokkos::View<double**> random_controls("random_controls", num_random_samples, nsd);
-        Kokkos::View<double**> transform("transform", nsd, nsd);
         sample_controls_host(num_random_samples, random_controls);
+
+        Kokkos::View<double**> transform("transform", nsd, nsd);
         compute_transform_matrix(transform);
 
-        // --- Weight vectors
+        // Time and Weights
+        Kokkos::View<double*> time_view("time_view", num_steps);
+        auto time_host = Kokkos::create_mirror_view(time_view);
+        for (int i = 0; i < num_steps; ++i) {
+            time_host(i) = time_vec[i];
+        }
+        Kokkos::deep_copy(time_view, time_host);
+
         Kokkos::View<double*> Wm_view("Wm", num_sigma);
         Kokkos::View<double*> Wc_view("Wc", num_sigma);
         auto Wm_host = Kokkos::create_mirror_view(Wm_view);
@@ -96,10 +117,11 @@ inline double run_propagation_test(int num_steps, const PropagationSettings& set
         Kokkos::deep_copy(Wm_view, Wm_host);
         Kokkos::deep_copy(Wc_view, Wc_host);
 
-        // --- Output Storage
-        Kokkos::View<double****> trajectories_out("trajectories_out", num_bundles, num_sigma, settings.num_eval_per_step, 8);
+        // Trajectories (always fixed to 200 points total per full trajectory)
+        int num_storage_steps = settings.num_eval_per_step;  // ALWAYS 200
+        Kokkos::View<double****> trajectories_out("trajectories_out", num_bundles, num_sigma, num_storage_steps, 8);
 
-        // === Start Timer ===
+        // === Start timing ===
         Kokkos::Timer timer;
 
         propagate_sigma_trajectories(
@@ -112,7 +134,7 @@ inline double run_propagation_test(int num_steps, const PropagationSettings& set
 
         Kokkos::fence();
         elapsed = timer.seconds();
-    } // ← everything cleanly destroyed here
+    } // All Views destroyed safely here
 
     return elapsed;
 }
