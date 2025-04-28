@@ -17,7 +17,7 @@ struct SigmaPointFunctor {
         const View3D& r_b, const View3D& v_b, const View2D& m_b,
         const View4D& sig_out, const ViewMatrixDevice& L_in,
         int nsd_, double scale, const Kokkos::View<int*>& t_steps)
-        : r_bundles(r_b), v_bundles(m_b), m_bundles(m_b),
+        : r_bundles(r_b), v_bundles(v_b), m_bundles(m_b),
           sigmas_out(sig_out), L_device(L_in), nsd(nsd_),
           scaling_factor(scale), time_steps(t_steps)
     {}
