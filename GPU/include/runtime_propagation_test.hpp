@@ -124,10 +124,13 @@ inline double run_propagation_test(int num_steps, const PropagationSettings& set
             generate_sigma_points_kokkos(
                 nsd, alpha, 2.0, 3.0 - nsd,
                 P_pos_flat, P_vel_flat, P_mass,
-                time_steps_view, r_bundles, v_bundles, m_bundles,
-                sigmas_combined
+                static_cast<const Kokkos::View<int*>&>(time_steps_view),
+                static_cast<const Kokkos::View<double***>&>(r_bundles),
+                static_cast<const Kokkos::View<double***>&>(v_bundles),
+                static_cast<const Kokkos::View<double**>&>(m_bundles),
+                static_cast<const Kokkos::View<double****>&>(sigmas_combined)
             );
-
+            
             // Propagate for this single interval
             auto random_controls_sub = Kokkos::subview(
                 random_controls,
