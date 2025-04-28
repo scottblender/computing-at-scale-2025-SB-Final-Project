@@ -98,6 +98,7 @@ target_link_libraries(test_sigma_propagation_cpu
 # --------------------------
 # GPU Tests: Sigma Propagation (GPU)
 # --------------------------
+
 add_executable(test_sigma_propagation_gpu
     GPU/src/main.cpp
     GPU/tests/test_sigma_propagation_gpu.cpp
@@ -109,13 +110,13 @@ target_link_libraries(test_sigma_propagation_gpu
 )
 
 # --------------------------
-# Benchmark executable: Timing Serial/OpenMP/CUDA (NEW)
+# Benchmark executable: Timing Serial/OpenMP/CUDA
 # --------------------------
+
 add_executable(runtime_vs_timesteps_benchmark
-    GPU/src/main.cpp  # uses new main.cpp you wrote with --benchmark option
+    GPU/src/main_benchmark.cpp  # <<< NEW BENCHMARK MAIN
 )
 target_link_libraries(runtime_vs_timesteps_benchmark
     PRIVATE
     sigma_points_gpu_lib
-    Catch2::Catch2
 )
