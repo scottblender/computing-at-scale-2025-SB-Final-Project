@@ -51,7 +51,7 @@ int main(int argc, char* argv[]) {
         settings.num_subintervals = 10;
         settings.num_eval_per_step = 200;
 
-        std::vector<int> refinements = {1, 2, 5, 10, 20, 50, 100};
+        std::vector<int> refinements = {2, 5, 10, 20, 50, 100};
         std::ofstream output("runtime_vs_timesteps_" + backend + ".csv");
         output << "timesteps,runtime\n";
 
