@@ -3,13 +3,9 @@
 
 #include <Kokkos_Core.hpp>
 
-// Use the same memory space definitions as sigma_propagation_gpu.hpp
-using ExecSpace = Kokkos::DefaultExecutionSpace;
-using MemSpace = ExecSpace::memory_space;
-
-using View3D = Kokkos::View<double***, MemSpace>;
-using View2D = Kokkos::View<double**, MemSpace>;
-using View4D = Kokkos::View<double****, MemSpace>;
+using View3D = Kokkos::View<double***>;
+using View2D = Kokkos::View<double**>;
+using View4D = Kokkos::View<double****>;
 using ViewMatrixHost = Kokkos::View<double**, Kokkos::HostSpace>;
 
 void generate_sigma_points_kokkos(
@@ -20,7 +16,7 @@ void generate_sigma_points_kokkos(
     const double* P_pos_flat, // 9 elements
     const double* P_vel_flat, // 9 elements
     double P_mass,
-    const Kokkos::View<int*, MemSpace> time_steps, // With memory space
+    const Kokkos::View<int*> time_steps, // now Kokkos View
     const View3D& r_bundles,
     const View3D& v_bundles,
     const View2D& m_bundles,
