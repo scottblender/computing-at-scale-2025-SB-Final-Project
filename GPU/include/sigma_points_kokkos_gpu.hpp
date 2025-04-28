@@ -7,10 +7,8 @@
 using View3D = Kokkos::View<double***>;
 using View2D = Kokkos::View<double**>;
 using View4D = Kokkos::View<double****>;
-using ViewMatrixHost = Kokkos::View<double**, Kokkos::HostSpace>;
-using ViewMatrixDevice = Kokkos::View<double**>;
 
-// Correct declaration
+// Function to generate sigma points using Kokkos parallelism
 void generate_sigma_points_kokkos(
     int nsd,
     double alpha,
