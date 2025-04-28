@@ -9,6 +9,7 @@
         "string_view": "cpp",
         "initializer_list": "cpp",
         "stdexcept": "cpp",
-        "cmath": "cpp"
+        "cmath": "cpp",
+        "optional": "cpp"
     }
 }

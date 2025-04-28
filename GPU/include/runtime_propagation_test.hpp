@@ -3,19 +3,17 @@
 
 #include <Kokkos_Core.hpp>
 #include <iostream>
-#include <fstream>
 #include <vector>
 #include <string>
 #include <cmath>
 
 #include "../include/sigma_points_kokkos_gpu.hpp"
 #include "../include/sigma_propagation_gpu.hpp"
-#include "../include/csv_loader_gpu.hpp"
 #include "../include/sample_controls_host.hpp"
 #include "../include/compute_transform_matrix.hpp"
 
 // ==================================================
-// Timing utility to run propagation test
+// Timing utility to run propagation benchmark
 // ==================================================
 
 inline double run_propagation_test(int num_steps, const PropagationSettings& settings) {
@@ -26,13 +24,14 @@ inline double run_propagation_test(int num_steps, const PropagationSettings& set
         const int nsd = 7;
         const int num_sigma = 2 * nsd + 1; // 15 sigma points
 
-        // Dummy initializations
+        // Initialize states
         Kokkos::View<double***> r_bundles("r_bundles", num_bundles, num_steps, 3);
         Kokkos::View<double***> v_bundles("v_bundles", num_bundles, num_steps, 3);
         Kokkos::View<double**> m_bundles("m_bundles", num_bundles, num_steps);
         Kokkos::View<double***> new_lam_bundles("new_lam_bundles", num_steps, nsd, num_bundles);
-        Kokkos::deep_copy(new_lam_bundles, 0.0);  // ✅ Properly zero initialize
+        Kokkos::deep_copy(new_lam_bundles, 0.0); // Proper zero initialization
 
+        // Time steps
         Kokkos::View<int*> time_steps("time_steps", num_steps);
         auto time_steps_host = Kokkos::create_mirror_view(time_steps);
         for (int i = 0; i < num_steps; ++i) {
@@ -40,7 +39,10 @@ inline double run_propagation_test(int num_steps, const PropagationSettings& set
         }
         Kokkos::deep_copy(time_steps, time_steps_host);
 
+        // Sigma point settings
         double alpha = 1.7215, beta = 2.0, kappa = 3.0 - nsd;
+        double lambda = alpha * alpha * (nsd + kappa) - nsd;
+
         double P_mass = 0.0001;
         double P_pos_flat[9] = {0.01, 0, 0, 0, 0.01, 0, 0, 0, 0.01};
         double P_vel_flat[9] = {0.0001, 0, 0, 0, 0.0001, 0, 0, 0, 0.0001};
@@ -53,14 +55,15 @@ inline double run_propagation_test(int num_steps, const PropagationSettings& set
             sigmas_combined
         );
 
-        // Random controls and transform
+        // Controls and transform
         const int num_random_samples = std::max(1, (num_steps - 1) * (settings.num_subintervals - 1));
         Kokkos::View<double**> random_controls("random_controls", num_random_samples, nsd);
         Kokkos::View<double**> transform("transform", nsd, nsd);
+
         sample_controls_host(num_random_samples, random_controls);
         compute_transform_matrix(transform);
 
-        // Time and weights
+        // Time vector
         Kokkos::View<double*> time_view("time_view", num_steps);
         auto time_host = Kokkos::create_mirror_view(time_view);
         for (int i = 0; i < num_steps; ++i) {
@@ -68,20 +71,25 @@ inline double run_propagation_test(int num_steps, const PropagationSettings& set
         }
         Kokkos::deep_copy(time_view, time_host);
 
+        // Sigma weights
         Kokkos::View<double*> Wm_view("Wm", num_sigma);
         Kokkos::View<double*> Wc_view("Wc", num_sigma);
         auto Wm_host = Kokkos::create_mirror_view(Wm_view);
         auto Wc_host = Kokkos::create_mirror_view(Wc_view);
-        for (int i = 0; i < num_sigma; ++i) {
-            Wm_host(i) = 1.0 / (2 * (nsd + alpha));
+
+        Wm_host(0) = lambda / (nsd + lambda);
+        Wc_host(0) = Wm_host(0) + (1.0 - alpha * alpha + beta);
+        for (int i = 1; i < num_sigma; ++i) {
+            Wm_host(i) = 1.0 / (2 * (nsd + lambda));
             Wc_host(i) = Wm_host(i);
         }
         Kokkos::deep_copy(Wm_view, Wm_host);
         Kokkos::deep_copy(Wc_view, Wc_host);
 
+        // Output
         Kokkos::View<double****> trajectories_out("trajectories_out", num_bundles, num_sigma, settings.num_eval_per_step, 8);
 
-        // === Start timer ===
+        // Start timer
         Kokkos::Timer timer;
 
         propagate_sigma_trajectories(
@@ -92,9 +100,9 @@ inline double run_propagation_test(int num_steps, const PropagationSettings& set
             trajectories_out
         );
 
-        Kokkos::fence();
+        Kokkos::fence(); // Ensure timing is accurate
         elapsed = timer.seconds();
-    } // <---- all Kokkos Views automatically deallocated here
+    } // <== all Kokkos Views automatically deallocated here
 
     return elapsed;
 }
