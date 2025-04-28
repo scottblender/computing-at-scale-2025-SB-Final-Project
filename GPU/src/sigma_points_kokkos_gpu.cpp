@@ -3,6 +3,8 @@
 
 // Typedefs for brevity
 using ViewMatrixDevice = Kokkos::View<double**>;
+using ViewMatrixHost = Kokkos::View<double**, Kokkos::HostSpace>; // <--- ADD THIS
+
 
 struct SigmaPointFunctor {
     View3D r_bundles, v_bundles;
