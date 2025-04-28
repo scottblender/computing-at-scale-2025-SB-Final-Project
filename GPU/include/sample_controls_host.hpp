@@ -1,10 +1,10 @@
 #ifndef SAMPLE_CONTROLS_HOST_HPP
 #define SAMPLE_CONTROLS_HOST_HPP
 
+#include "../include/kokkos_types.hpp"
+
 #include <Kokkos_Core.hpp>
 
-using DeviceMatrix = Kokkos::View<double**, Kokkos::DefaultExecutionSpace::memory_space>;
-using HostMatrix = Kokkos::View<double**, Kokkos::HostSpace>;
 
 // For device memory (real GPU benchmark)
 void sample_controls_host(

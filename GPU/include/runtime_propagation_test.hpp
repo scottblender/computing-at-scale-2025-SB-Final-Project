@@ -15,9 +15,8 @@
 #include "../include/sample_controls_host.hpp"
 #include "../include/compute_transform_matrix.hpp"
 #include "../include/rv2mee_gpu.hpp"
+#include "../include/kokkos_types.hpp"
 
-using Device4D = Kokkos::View<double****, Kokkos::DefaultExecutionSpace::memory_space>;
-using DeviceMatrix = Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::DefaultExecutionSpace::memory_space>;
 
 inline double run_propagation_test(int num_steps, const PropagationSettings& settings) {
     double elapsed = 0.0;
