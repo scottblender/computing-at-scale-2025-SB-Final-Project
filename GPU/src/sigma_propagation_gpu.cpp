@@ -6,15 +6,17 @@
 KOKKOS_INLINE_FUNCTION
 void rk45_step(
     void (*odefunc)(const double*, double*, double, const PropagationSettings&),
-    const double* x0, double t0, double t1, int steps,
+    const double* x0, double t0, double t1, int steps, // steps = 200
     const PropagationSettings& settings,
-    double history[][14], double* time_out
+    double history[200][14], // ✅ Keep 200x14 stack array
+    double time_out[200]     // ✅ Keep 200 time values
 ) {
-    double h = (t1 - t0) / (steps - 1);
+    double h = (t1 - t0) / (steps - 1); // ✅ Always (t1-t0)/199 if steps=200
     double x[14];
     for (int i = 0; i < 14; ++i) x[i] = x0[i];
 
     double k1[14], k2[14], k3[14], k4[14], k5[14], k6[14], dx[14];
+
     for (int s = 0; s < steps; ++s) {
         for (int i = 0; i < 14; ++i) history[s][i] = x[i];
         time_out[s] = t0 + s * h;
