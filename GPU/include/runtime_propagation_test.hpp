@@ -16,10 +16,6 @@
 #include "../include/compute_transform_matrix.hpp"
 #include "../include/rv2mee_gpu.hpp"
 
-// ==================================================
-// Timing utility to run propagation test
-// ==================================================
-
 inline double run_propagation_test(int num_steps, const PropagationSettings& settings) {
     double elapsed = 0.0;
 
@@ -27,7 +23,6 @@ inline double run_propagation_test(int num_steps, const PropagationSettings& set
         const int num_bundles = 1;
         const int nsd = 7;
         const int num_sigma = 2 * nsd + 1;  // 15 sigma points
-        const int num_intervals = num_steps - 1; // intervals = steps - 1
 
         if (num_steps < 2) {
             std::cerr << "[ERROR] num_steps must be >= 2!\n";
@@ -50,67 +45,21 @@ inline double run_propagation_test(int num_steps, const PropagationSettings& set
             }
         }
 
-        Kokkos::View<double***> r_bundles("r_bundles", num_bundles, num_steps, 3);
-        Kokkos::View<double***> v_bundles("v_bundles", num_bundles, num_steps, 3);
-        Kokkos::View<double**> m_bundles("m_bundles", num_bundles, num_steps);
-        Kokkos::View<double***> new_lam_bundles("new_lam_bundles", num_steps, nsd, num_bundles);
+        // Set up views for one interval only
+        Kokkos::View<double***> r_bundles("r_bundles", num_bundles, 2, 3);  // 2 time points per interval
+        Kokkos::View<double***> v_bundles("v_bundles", num_bundles, 2, 3);
+        Kokkos::View<double**> m_bundles("m_bundles", num_bundles, 2);
+        Kokkos::View<double***> new_lam_bundles("new_lam_bundles", 2, nsd, num_bundles);
 
-        std::vector<double> time_vec(num_steps);
+        Kokkos::View<int*> time_steps_view("time_steps_view", 2);
+        Kokkos::View<double*> time_view("time_view", 2);
 
-        for (int step = 0; step < num_steps; ++step) {
-            for (int k = 0; k < 3; ++k) {
-                r_bundles(0, step, k) = initial_data(step, 1 + k);
-                v_bundles(0, step, k) = initial_data(step, 4 + k);
-            }
-            m_bundles(0, step) = initial_data(step, 7);
-            for (int k = 0; k < 7; ++k) {
-                new_lam_bundles(step, k, 0) = initial_data(step, 8 + k);
-            }
-            time_vec[step] = initial_data(step, 0);
-        }
-
-        // Sigma points
-        Kokkos::View<double****> sigmas_combined("sigmas_combined", num_bundles, num_sigma, nsd, num_steps);
-
-        Kokkos::View<int*> time_steps_view("time_steps_view", num_steps);
-        auto time_steps_host = Kokkos::create_mirror_view(time_steps_view);
-        for (int i = 0; i < num_steps; ++i) {
-            time_steps_host(i) = i;
-        }
-        Kokkos::deep_copy(time_steps_view, time_steps_host);
-
-        double alpha = 1.7215, beta = 2.0, kappa = 3.0 - nsd;
-        double P_mass = 0.0001;
-        double P_pos_flat[9] = {0.01,0,0,0,0.01,0,0,0,0.01};
-        double P_vel_flat[9] = {0.0001,0,0,0,0.0001,0,0,0,0.0001};
-
-        generate_sigma_points_kokkos(
-            nsd, alpha, beta, kappa,
-            P_pos_flat, P_vel_flat, P_mass,
-            time_steps_view, r_bundles, v_bundles, m_bundles,
-            sigmas_combined
-        );
-
-        // Random controls
-        const int num_random_samples = num_intervals * (settings.num_subintervals - 1);
-        Kokkos::View<double**> random_controls("random_controls", num_random_samples, nsd);
-        sample_controls_host(num_random_samples, random_controls);
-
-        Kokkos::View<double**> transform("transform", nsd, nsd);
-        compute_transform_matrix(transform);
-
-        // Time and Weights
-        Kokkos::View<double*> time_view("time_view", num_steps);
-        auto time_host = Kokkos::create_mirror_view(time_view);
-        for (int i = 0; i < num_steps; ++i) {
-            time_host(i) = time_vec[i];
-        }
-        Kokkos::deep_copy(time_view, time_host);
-
+        // Sigma weights
         Kokkos::View<double*> Wm_view("Wm", num_sigma);
         Kokkos::View<double*> Wc_view("Wc", num_sigma);
         auto Wm_host = Kokkos::create_mirror_view(Wm_view);
         auto Wc_host = Kokkos::create_mirror_view(Wc_view);
+        double alpha = 1.7215;
         for (int i = 0; i < num_sigma; ++i) {
             Wm_host(i) = 1.0 / (2 * (nsd + alpha));
             Wc_host(i) = Wm_host(i);
@@ -118,24 +67,82 @@ inline double run_propagation_test(int num_steps, const PropagationSettings& set
         Kokkos::deep_copy(Wm_view, Wm_host);
         Kokkos::deep_copy(Wc_view, Wc_host);
 
-        // Trajectories (always fixed to 200 points total per full trajectory)
-        int num_storage_steps = settings.num_eval_per_step;  // ALWAYS 200
+        // Random controls and transform
+        const int num_subintervals = settings.num_subintervals;
+        const int num_random_samples_per_interval = (num_subintervals - 1);
+        const int total_random_samples = (num_steps - 1) * num_random_samples_per_interval;
+        Kokkos::View<double**> random_controls("random_controls", total_random_samples, nsd);
+        sample_controls_host(total_random_samples, random_controls);
+
+        Kokkos::View<double**> transform("transform", nsd, nsd);
+        compute_transform_matrix(transform);
+
+        // Trajectory output
+        int num_storage_steps = settings.num_eval_per_step;
         Kokkos::View<double****> trajectories_out("trajectories_out", num_bundles, num_sigma, num_storage_steps, 8);
 
         // === Start timing ===
         Kokkos::Timer timer;
 
-        propagate_sigma_trajectories(
-            sigmas_combined, new_lam_bundles,
-            time_view, Wm_view, Wc_view,
-            random_controls, transform,
-            settings,
-            trajectories_out
-        );
+        int random_sample_idx = 0;
+
+        for (int j = 0; j < num_steps - 1; ++j) {
+            // Fill r, v, mass, lambda for time[j] and time[j+1]
+            auto r_host = Kokkos::create_mirror_view(r_bundles);
+            auto v_host = Kokkos::create_mirror_view(v_bundles);
+            auto m_host = Kokkos::create_mirror_view(m_bundles);
+            auto lam_host = Kokkos::create_mirror_view(new_lam_bundles);
+            auto time_steps_host = Kokkos::create_mirror_view(time_steps_view);
+            auto time_host = Kokkos::create_mirror_view(time_view);
+
+            for (int step = 0; step < 2; ++step) {
+                for (int k = 0; k < 3; ++k) {
+                    r_host(0, step, k) = initial_data(j + step, 1 + k);
+                    v_host(0, step, k) = initial_data(j + step, 4 + k);
+                }
+                m_host(0, step) = initial_data(j + step, 7);
+                for (int k = 0; k < 7; ++k) {
+                    lam_host(step, k, 0) = initial_data(j + step, 8 + k);
+                }
+                time_steps_host(step) = step;
+                time_host(step) = initial_data(j + step, 0);
+            }
+
+            Kokkos::deep_copy(r_bundles, r_host);
+            Kokkos::deep_copy(v_bundles, v_host);
+            Kokkos::deep_copy(m_bundles, m_host);
+            Kokkos::deep_copy(new_lam_bundles, lam_host);
+            Kokkos::deep_copy(time_steps_view, time_steps_host);
+            Kokkos::deep_copy(time_view, time_host);
+
+            // Generate sigma points for this interval
+            Kokkos::View<double****> sigmas_combined("sigmas_combined", num_bundles, num_sigma, nsd, 2);
+            double P_mass = 0.0001;
+            double P_pos_flat[9] = {0.01,0,0,0,0.01,0,0,0,0.01};
+            double P_vel_flat[9] = {0.0001,0,0,0,0.0001,0,0,0,0.0001};
+
+            generate_sigma_points_kokkos(
+                nsd, alpha, 2.0, 3.0 - nsd,
+                P_pos_flat, P_vel_flat, P_mass,
+                time_steps_view, r_bundles, v_bundles, m_bundles,
+                sigmas_combined
+            );
+
+            // Propagate for this single interval
+            propagate_sigma_trajectories(
+                sigmas_combined, new_lam_bundles,
+                time_view, Wm_view, Wc_view,
+                random_controls, transform,
+                settings,
+                trajectories_out
+            );
+
+            random_sample_idx += num_random_samples_per_interval;
+        }
 
         Kokkos::fence();
         elapsed = timer.seconds();
-    } // All Views destroyed safely here
+    }
 
     return elapsed;
 }
