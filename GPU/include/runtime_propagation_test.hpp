@@ -66,11 +66,11 @@ inline double run_propagation_test(int num_steps, const PropagationSettings& set
 
     // Corrected: Host + Device random_controls
     DeviceMatrix random_controls("random_controls", total_random_samples, nsd);
-    HostMatrix random_controls_host = Kokkos::create_mirror_view(random_controls);
-
-    sample_controls_host_host(total_random_samples, random_controls_host);
-    Kokkos::deep_copy(random_controls, random_controls_host);
-
+    HostMatrix random_controls_host("random_controls_host", total_random_samples, nsd);  // <--- DIRECT allocation
+    
+    sample_controls_host_host(total_random_samples, random_controls_host);  // Fill host matrix
+    Kokkos::deep_copy(random_controls, random_controls_host);               // Deep copy to device matrix
+    
     Kokkos::View<double**> transform("transform", nsd, nsd);
     compute_transform_matrix(transform);
 
