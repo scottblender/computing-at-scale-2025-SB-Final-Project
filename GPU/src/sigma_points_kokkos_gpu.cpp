@@ -3,15 +3,14 @@
 
 // Typedefs for brevity
 using ViewMatrixDevice = Kokkos::View<double**>;
-using ViewMatrixHost = Kokkos::View<double**, Kokkos::HostSpace>; // <--- ADD THIS
-
+using ViewMatrixHost = Kokkos::View<double**, Kokkos::HostSpace>; // <--- ADDED CORRECTLY
 
 struct SigmaPointFunctor {
     View3D r_bundles, v_bundles;
     View2D m_bundles;
     View4D sigmas_out;
-    ViewMatrixDevice L_device; // NOW correctly device-resident
-    Kokkos::View<int*>& time_steps;
+    ViewMatrixDevice L_device;
+    const Kokkos::View<int*>& time_steps;   // <--- FIXED: added const&
     int nsd;
     double scaling_factor;
 
@@ -20,8 +19,9 @@ struct SigmaPointFunctor {
         const View4D& sig_out, const ViewMatrixDevice& L_in,
         int nsd_, double scale, const Kokkos::View<int*>& t_steps)
         : r_bundles(r_b), v_bundles(v_b), m_bundles(m_b),
-          sigmas_out(sig_out), L_device(L_in), nsd(nsd_),
-          scaling_factor(scale), time_steps(t_steps)
+          sigmas_out(sig_out), L_device(L_in),
+          time_steps(t_steps),  // <-- order matters here: after L_device
+          nsd(nsd_), scaling_factor(scale)
     {}
 
     KOKKOS_INLINE_FUNCTION
@@ -59,8 +59,8 @@ void generate_sigma_points_kokkos(
     double alpha,
     double beta,
     double kappa,
-    const double* P_pos_flat, // length 9
-    const double* P_vel_flat, // length 9
+    const double* P_pos_flat,
+    const double* P_vel_flat,
     double P_mass,
     const Kokkos::View<int*> time_steps,
     const View3D& r_bundles,
@@ -104,7 +104,7 @@ void generate_sigma_points_kokkos(
             }
         }
         for (int k = j+1; k < nsd; ++k) {
-            P_combined(j,k) = 0.0; // upper triangle zero
+            P_combined(j,k) = 0.0;
         }
     }
 
@@ -119,5 +119,5 @@ void generate_sigma_points_kokkos(
     );
 
     Kokkos::parallel_for("GenerateSigmaPoints", r_bundles.extent(0), functor);
-    Kokkos::fence(); // ensure complete
+    Kokkos::fence();
 }
