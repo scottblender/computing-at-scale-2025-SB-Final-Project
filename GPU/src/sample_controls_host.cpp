@@ -3,9 +3,12 @@
 
 void sample_controls_host(
     int total_samples,
-    Kokkos::View<double**>& random_controls_out
+    DeviceMatrix& random_controls_out
 ) {
-    auto mirror = Kokkos::create_mirror_view(random_controls_out);
+    using HostMatrix = Kokkos::View<double**, Kokkos::LayoutRight, Kokkos::HostSpace>;
+
+    HostMatrix mirror = Kokkos::create_mirror_view(random_controls_out);
+
     std::mt19937 gen(42);
     std::normal_distribution<> dist(0.0, 1.0);
 
@@ -14,5 +17,6 @@ void sample_controls_host(
             mirror(i,j) = dist(gen);
         }
     }
+
     Kokkos::deep_copy(random_controls_out, mirror);
 }
