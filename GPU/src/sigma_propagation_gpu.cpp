@@ -60,12 +60,14 @@ void propagate_sigma_trajectories(
     const PropagationSettings& settings,
     View4D& trajectories_out
 ) {
+    auto sigmas_host = Kokkos::create_mirror_view(sigmas_combined);
     auto lam_host = Kokkos::create_mirror_view(new_lam_bundles);
     auto traj_host = Kokkos::create_mirror_view(trajectories_out);
     auto time_host = Kokkos::create_mirror_view(time);
     auto rand_host = Kokkos::create_mirror_view(random_controls);
     auto transform_host = Kokkos::create_mirror_view(transform);
 
+    Kokkos::deep_copy(sigmas_host, sigmas_combined);
     Kokkos::deep_copy(lam_host, new_lam_bundles);
     Kokkos::deep_copy(time_host, time);
     Kokkos::deep_copy(rand_host, random_controls);
@@ -79,16 +81,15 @@ void propagate_sigma_trajectories(
 
     int rand_idx = 0;
 
-    
     for (int i = 0; i < num_bundles; ++i) {
         for (int sigma = 0; sigma < num_sigma; ++sigma) {
             for (int j = 0; j < num_steps - 1; ++j) {
                 double r[3], v[3];
                 for (int k = 0; k < 3; ++k) {
-                    r[k] = sigmas_combined(i, sigma, k, j);
-                    v[k] = sigmas_combined(i, sigma, k+3, j);
+                    r[k] = sigmas_host(i, sigma, k, j);
+                    v[k] = sigmas_host(i, sigma, k+3, j);
                 }
-                double mass = sigmas_combined(i, sigma, 6, j);
+                double mass = sigmas_host(i, sigma, 6, j);
 
                 double mee[6];
                 rv2mee(r, v, settings.mu, mee);
