@@ -31,6 +31,7 @@ inline double run_propagation_test(int num_steps, const PropagationSettings& set
         Kokkos::View<double***> v_bundles("v_bundles", num_bundles, num_steps, 3);
         Kokkos::View<double**> m_bundles("m_bundles", num_bundles, num_steps);
         Kokkos::View<double***> new_lam_bundles("new_lam_bundles", num_steps, nsd, num_bundles);
+        Kokkos::deep_copy(new_lam_bundles, 0.0);  // ✅ Properly zero initialize
 
         Kokkos::View<int*> time_steps("time_steps", num_steps);
         auto time_steps_host = Kokkos::create_mirror_view(time_steps);
@@ -53,7 +54,7 @@ inline double run_propagation_test(int num_steps, const PropagationSettings& set
         );
 
         // Random controls and transform
-        const int num_random_samples = (num_steps - 1) * (settings.num_subintervals - 1);
+        const int num_random_samples = std::max(1, (num_steps - 1) * (settings.num_subintervals - 1));
         Kokkos::View<double**> random_controls("random_controls", num_random_samples, nsd);
         Kokkos::View<double**> transform("transform", nsd, nsd);
         sample_controls_host(num_random_samples, random_controls);
@@ -93,7 +94,7 @@ inline double run_propagation_test(int num_steps, const PropagationSettings& set
 
         Kokkos::fence();
         elapsed = timer.seconds();
-    } // <---- all Kokkos Views destroyed here
+    } // <---- all Kokkos Views automatically deallocated here
 
     return elapsed;
 }
