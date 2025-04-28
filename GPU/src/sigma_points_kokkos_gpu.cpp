@@ -1,21 +1,24 @@
 #include "../include/sigma_points_kokkos_gpu.hpp"
 #include <cmath>
 
+// Typedefs for brevity
+using ViewMatrixDevice = Kokkos::View<double**>;
+
 struct SigmaPointFunctor {
     View3D r_bundles, v_bundles;
     View2D m_bundles;
     View4D sigmas_out;
-    ViewMatrixHost L_host;
+    ViewMatrixDevice L_device; // NOW correctly device-resident
     Kokkos::View<int*> time_steps;
     int nsd;
     double scaling_factor;
 
     SigmaPointFunctor(
         const View3D& r_b, const View3D& v_b, const View2D& m_b,
-        const View4D& sig_out, const ViewMatrixHost& L_in,
+        const View4D& sig_out, const ViewMatrixDevice& L_in,
         int nsd_, double scale, const Kokkos::View<int*>& t_steps)
-        : r_bundles(r_b), v_bundles(v_b), m_bundles(m_b),
-          sigmas_out(sig_out), L_host(L_in), nsd(nsd_),
+        : r_bundles(r_b), v_bundles(m_b), m_bundles(m_b),
+          sigmas_out(sig_out), L_device(L_in), nsd(nsd_),
           scaling_factor(scale), time_steps(t_steps)
     {}
 
@@ -25,20 +28,23 @@ struct SigmaPointFunctor {
             int t = time_steps(j);
             double mu[7];
 
+            // Get mean state
             for (int k = 0; k < 3; ++k) mu[k] = r_bundles(i, t, k);
             for (int k = 0; k < 3; ++k) mu[3+k] = v_bundles(i, t, k);
             mu[6] = m_bundles(i, t);
 
+            // Central sigma point (index 0)
             for (int k = 0; k < nsd; ++k)
                 sigmas_out(i, 0, k, j) = mu[k];
 
+            // Positive and negative sigma points
             for (int k = 0; k < nsd; ++k) {
                 double offset[7];
                 for (int d = 0; d < nsd; ++d)
-                    offset[d] = scaling_factor * L_host(d, k);
+                    offset[d] = scaling_factor * L_device(d, k);
 
                 for (int d = 0; d < nsd; ++d) {
-                    sigmas_out(i, 1+k, d, j)       = mu[d] + offset[d];
+                    sigmas_out(i, 1+k, d, j) = mu[d] + offset[d];
                     sigmas_out(i, 1+nsd+k, d, j) = mu[d] - offset[d];
                 }
             }
@@ -66,14 +72,21 @@ void generate_sigma_points_kokkos(
     // Host-only covariance assembly
     ViewMatrixHost P_combined("P_combined", nsd, nsd);
 
-    for (int i = 0; i < 3; ++i) // pos
-        for (int j = 0; j < 3; ++j)
+    // Fill position covariance
+    for (int i = 0; i < 3; ++i) {
+        for (int j = 0; j < 3; ++j) {
             P_combined(i, j) = P_pos_flat[i*3 + j];
+        }
+    }
 
-    for (int i = 0; i < 3; ++i) // vel
-        for (int j = 0; j < 3; ++j)
+    // Fill velocity covariance
+    for (int i = 0; i < 3; ++i) {
+        for (int j = 0; j < 3; ++j) {
             P_combined(i+3, j+3) = P_vel_flat[i*3 + j];
+        }
+    }
 
+    // Fill mass variance
     P_combined(6, 6) = P_mass;
 
     // Manual Cholesky decomposition (lower triangular)
@@ -93,12 +106,16 @@ void generate_sigma_points_kokkos(
         }
     }
 
-    // Launch Kokkos Functor
+    // Device copy
+    ViewMatrixDevice L_device("L_device", nsd, nsd);
+    Kokkos::deep_copy(L_device, P_combined);
+
+    // Launch Kokkos parallel_for
     SigmaPointFunctor functor(
         r_bundles, v_bundles, m_bundles,
-        sigmas_out, P_combined, nsd, scaling_factor, time_steps
+        sigmas_out, L_device, nsd, scaling_factor, time_steps
     );
 
     Kokkos::parallel_for("GenerateSigmaPoints", r_bundles.extent(0), functor);
-    Kokkos::fence(); // Ensure completion
+    Kokkos::fence(); // ensure complete
 }

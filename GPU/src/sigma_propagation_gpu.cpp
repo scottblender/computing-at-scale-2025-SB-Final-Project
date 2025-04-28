@@ -79,6 +79,7 @@ void propagate_sigma_trajectories(
 
     int rand_idx = 0;
 
+    
     for (int i = 0; i < num_bundles; ++i) {
         for (int sigma = 0; sigma < num_sigma; ++sigma) {
             for (int j = 0; j < num_steps - 1; ++j) {

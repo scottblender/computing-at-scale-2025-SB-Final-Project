@@ -3,11 +3,14 @@
 
 #include <Kokkos_Core.hpp>
 
+// Typedefs for convenience
 using View3D = Kokkos::View<double***>;
 using View2D = Kokkos::View<double**>;
 using View4D = Kokkos::View<double****>;
 using ViewMatrixHost = Kokkos::View<double**, Kokkos::HostSpace>;
+using ViewMatrixDevice = Kokkos::View<double**>; // New: for device-side matrices
 
+// Function to generate sigma points using Kokkos parallelism
 void generate_sigma_points_kokkos(
     int nsd,
     double alpha,
@@ -16,7 +19,7 @@ void generate_sigma_points_kokkos(
     const double* P_pos_flat, // 9 elements
     const double* P_vel_flat, // 9 elements
     double P_mass,
-    const Kokkos::View<int*> time_steps, // now Kokkos View
+    const Kokkos::View<int*>& time_steps, // Device view
     const View3D& r_bundles,
     const View3D& v_bundles,
     const View2D& m_bundles,
