@@ -48,17 +48,31 @@ int main(int argc, char* argv[]) {
         settings.m0 = 4000.0;
         settings.g0 = 9.81;
         settings.num_subintervals = 10;
-        settings.num_eval_per_step = 200;
+        settings.num_eval_per_step = 200;  // Always 200 RK45 steps per interval
 
-        std::vector<int> refinements = {5};
+        // Set up the refinements you want to test
+        std::vector<int> refinements = {2, 3, 5, 10, 20, 50, 100,250,500,1000};
 
+        // Output CSV file
         std::ofstream output("runtime_vs_timesteps_" + backend + ".csv");
+        if (!output.is_open()) {
+            std::cerr << "[ERROR] Failed to open output CSV file!\n";
+            Kokkos::finalize();
+            return 1;
+        }
         output << "timesteps,runtime\n";
 
+        // Run each refinement
         for (int nsteps : refinements) {
+            std::cout << "\n[INFO] Running benchmark with nsteps = " << nsteps << std::endl;
             double runtime = run_propagation_test(nsteps, settings);
-            std::cout << "Timesteps: " << nsteps << " => Runtime: " << runtime << " seconds\n";
-            output << nsteps << "," << runtime << "\n";
+
+            if (runtime < 0.0) {
+                std::cerr << "[ERROR] Benchmark failed for nsteps = " << nsteps << "\n";
+            } else {
+                std::cout << "Timesteps: " << nsteps << " => Runtime: " << runtime << " seconds\n";
+                output << nsteps << "," << runtime << "\n";
+            }
         }
 
         output.close();
