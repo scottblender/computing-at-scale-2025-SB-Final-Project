@@ -129,13 +129,19 @@ inline double run_propagation_test(int num_steps, const PropagationSettings& set
             );
 
             // Propagate for this single interval
+            auto random_controls_sub = Kokkos::subview(
+                random_controls,
+                Kokkos::pair<int,int>(random_sample_idx, random_sample_idx + num_random_samples_per_interval),
+                Kokkos::ALL()
+            );
+            
             propagate_sigma_trajectories(
                 sigmas_combined, new_lam_bundles,
                 time_view, Wm_view, Wc_view,
-                random_controls, transform,
+                random_controls_sub, transform,
                 settings,
                 trajectories_out
-            );
+            );            
 
             random_sample_idx += num_random_samples_per_interval;
         }
