@@ -51,7 +51,7 @@ int main(int argc, char* argv[]) {
         settings.num_eval_per_step = 200;  // Always 200 RK45 steps per interval
 
         // Set up the refinements you want to test
-        std::vector<int> refinements = {2, 3, 5, 10, 20, 50, 100,250,500,1000, 1001};
+        std::vector<int> refinements = {2, 3, 5, 10, 20, 50, 100,250,500,1000};
 
         // Output CSV file
         std::ofstream output("runtime_vs_timesteps_" + backend + ".csv");
