@@ -2,6 +2,7 @@
 #define RUNTIME_PROPAGATION_TEST_HPP
 
 #include <Kokkos_Core.hpp>
+#include <Eigen/Dense>
 #include <iostream>
 #include <fstream>
 #include <vector>
