@@ -93,7 +93,12 @@ void generate_sigma_points_kokkos(
     }
 
     ViewMatrixDevice L_device("L_device", nsd, nsd);
-    Kokkos::deep_copy(L_device, P_combined);
+
+    // Instead of deep_copy directly, do this:
+    auto P_combined_device = Kokkos::create_mirror_view_and_copy(Kokkos::DefaultExecutionSpace(), P_combined);
+    
+    // Now deep_copy from P_combined_device (on device) to L_device
+    Kokkos::deep_copy(L_device, P_combined_device);    
 
     SigmaPointFunctor functor(
         r_bundles, v_bundles, m_bundles,
