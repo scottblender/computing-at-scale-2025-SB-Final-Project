@@ -17,7 +17,6 @@
 #include "../include/rv2mee_gpu.hpp"
 #include "../include/kokkos_types.hpp"
 
-
 inline double run_propagation_test(int num_steps, const PropagationSettings& settings) {
     double elapsed = 0.0;
 
@@ -64,8 +63,13 @@ inline double run_propagation_test(int num_steps, const PropagationSettings& set
     const int num_subintervals = settings.num_subintervals;
     const int num_random_samples_per_interval = num_subintervals - 1;
     const int total_random_samples = (num_steps - 1) * num_random_samples_per_interval;
+
+    // Corrected: Host + Device random_controls
     DeviceMatrix random_controls("random_controls", total_random_samples, nsd);
-    sample_controls_host(total_random_samples, random_controls);
+    HostMatrix random_controls_host = Kokkos::create_mirror_view(random_controls);
+
+    sample_controls_host(total_random_samples, random_controls_host);
+    Kokkos::deep_copy(random_controls, random_controls_host);
 
     Kokkos::View<double**> transform("transform", nsd, nsd);
     compute_transform_matrix(transform);
