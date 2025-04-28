@@ -1,13 +1,13 @@
 #!/bin/bash
 
-set -e  # Exit on any error
+set -e  # Exit immediately if any command fails
 
 dir="$1"
 build_type="$2"
 compiler="$3"
-backend="${4:-SERIAL}"  # Default backend
+backend="${4:-SERIAL}"  # Default backend if not provided
 
-# Install directories (match GitHub cache paths)
+# Install locations (same as GitHub Actions cache)
 KOKKOS_INSTALL="$HOME/deps/kokkos/install"
 CATCH2_INSTALL="$HOME/deps/catch2/install"
 EIGEN_INSTALL="$HOME/deps/eigen/install"
@@ -18,13 +18,13 @@ mkdir -p "$HOME/deps"
 # Build Kokkos (if not cached)
 # --------------------------
 if [ ! -d "$KOKKOS_INSTALL" ]; then
-  echo "[INFO] Building Kokkos with backend: $backend"
+  echo "[INFO] Building Kokkos for backend: $backend"
   rm -rf "$dir/kokkos" "$dir/build-kokkos"
   git clone --depth 1 https://github.com/kokkos/kokkos "$dir/kokkos"
 
-  kokkos_backend_flags="-DKokkos_ENABLE_SERIAL=ON"
+  kokkos_backend_flags="-DKokkos_ENABLE_SERIAL=ON"  # Default
   if [[ "$backend" == "CUDA" ]]; then
-    kokkos_backend_flags="-DKokkos_ENABLE_CUDA=ON -DKokkos_ARCH_VOLTA70=ON -DKokkos_ENABLE_CUDA_LAMBDA=ON"
+    kokkos_backend_flags="-DKokkos_ENABLE_CUDA=ON -DKokkos_ENABLE_CUDA_LAMBDA=ON -DKokkos_ARCH_VOLTA70=ON"
   elif [[ "$backend" == "OPENMP" ]]; then
     kokkos_backend_flags="-DKokkos_ENABLE_OPENMP=ON"
   fi
@@ -42,7 +42,7 @@ else
   echo "[INFO] Using cached Kokkos install"
 fi
 
-export CMAKE_PREFIX_PATH="$CMAKE_PREFIX_PATH:$KOKKOS_INSTALL"
+export CMAKE_PREFIX_PATH="$KOKKOS_INSTALL"
 
 # --------------------------
 # Build Catch2 (if not cached)
@@ -79,49 +79,37 @@ fi
 export CMAKE_PREFIX_PATH="$CMAKE_PREFIX_PATH:$EIGEN_INSTALL"
 
 # --------------------------
-# Clean & Build Project
+# Clean & Build CPU project
 # --------------------------
-echo "[INFO] Cleaning and building project..."
+echo "[INFO] Building CPU version..."
 rm -rf "$dir/CPU/build"
 cmake -S . -B "$dir/CPU/build" \
   -DCMAKE_BUILD_TYPE="$build_type" \
   -DCMAKE_CXX_COMPILER="$compiler"
-
 cmake --build "$dir/CPU/build" -j8
 
 # --------------------------
-# Clean & Build Project
+# Clean & Build GPU project
 # --------------------------
-echo "[INFO] Cleaning and building project..."
+echo "[INFO] Building GPU version..."
 rm -rf "$dir/GPU/build"
 cmake -S . -B "$dir/GPU/build" \
   -DCMAKE_BUILD_TYPE="$build_type" \
   -DCMAKE_CXX_COMPILER="$compiler"
-
 cmake --build "$dir/GPU/build" -j8
 
 # --------------------------
-# Always copy CSVs into build directory for test access
+# Copy CSV files for tests
 # --------------------------
-echo "[INFO] Copying test CSV files into build directory..."
+echo "[INFO] Copying test CSV files into CPU and GPU build directories..."
 for f in expected_trajectories_bundle_32.csv initial_bundle_32.csv sigma_weights.csv; do
   if [ -f "$f" ]; then
     cp "$f" "$dir/CPU/build/"
-  else
-    echo "[ERROR] Missing required CSV file: $f"
-    exit 1
-  fi
-done
-
-# --------------------------
-# Always copy CSVs into build directory for test access
-# --------------------------
-echo "[INFO] Copying test CSV files into build directory..."
-for f in expected_trajectories_bundle_32.csv initial_bundle_32.csv sigma_weights.csv; do
-  if [ -f "$f" ]; then
     cp "$f" "$dir/GPU/build/"
   else
     echo "[ERROR] Missing required CSV file: $f"
     exit 1
   fi
 done
+
+echo "[INFO] Install completed successfully."
