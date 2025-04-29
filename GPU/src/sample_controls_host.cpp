@@ -25,7 +25,7 @@ __global__ void generate_random_samples_kernel(
 // Host function to fill the HostMatrix with random samples
 void sample_controls_host_host(
     int total_samples,
-    HostMatrix& random_controls_out
+    View2D& random_controls_out
 ) {
     #ifdef KOKKOS_ENABLE_CUDA
     // CUDA-specific part: Generate random samples on the device

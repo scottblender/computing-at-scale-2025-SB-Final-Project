@@ -78,7 +78,7 @@ inline double run_propagation_test(int num_steps, const PropagationSettings& set
     Kokkos::View<double**, MEMORY_SPACE> random_controls("random_controls", total_random_samples, nsd);
 
     // Declare the host view
-    Kokkos::View<double**, Kokkos::HostSpace> random_controls_host("random_controls_host", total_random_samples, nsd);
+    Kokkos::View<double**, MEMORY_SPACE> random_controls_host("random_controls_host", total_random_samples, nsd);
 
     // Fill host matrix
     sample_controls_host_host(total_random_samples, random_controls_host);
