@@ -54,7 +54,7 @@ inline double run_propagation_test(int num_steps, const PropagationSettings& set
     Kokkos::View<double***> v_bundles("v_bundles", num_bundles, 2, 3);
     Kokkos::View<double**> m_bundles("m_bundles", num_bundles, 2);
     Kokkos::View<double***> new_lam_bundles("new_lam_bundles", 2, nsd, num_bundles);
-    Kokkos::View<int*> time_steps_view("time_steps_view", 2);
+    Kokkos::View<double*> time_steps_view("time_steps_view", 2);  // Change from int* to double*
     Kokkos::View<double*> time_view("time_view", 2);
 
     Kokkos::View<double*> Wm_view("Wm", num_sigma);

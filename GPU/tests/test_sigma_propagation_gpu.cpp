@@ -12,6 +12,15 @@
 #include "../include/sample_controls_host.hpp"
 #include "../include/compute_transform_matrix.hpp"
 
+// Conditionally define memory space based on CUDA availability
+#ifdef KOKKOS_ENABLE_CUDA
+    // If CUDA is enabled, use CudaSpace
+    #define MEMORY_SPACE Kokkos::CudaSpace
+#else
+    // Otherwise, use HostSpace (default for serial runs)
+    #define MEMORY_SPACE Kokkos::HostSpace
+#endif
+
 TEST_CASE("Check propagated values for bundle=32, sigma=0 for single interval [GPU-compatible]", "[propagation]") {
     // Load initial CSV data
     auto initial_data_vec = load_csv("initial_bundle_32.csv", 16);
@@ -36,10 +45,10 @@ TEST_CASE("Check propagated values for bundle=32, sigma=0 for single interval [G
     double kappa = 3.0 - nsd;
     
     // Kokkos views for bundle data
-    Kokkos::View<double***> r_bundles("r_bundles", num_bundles, num_steps, 3);
-    Kokkos::View<double***> v_bundles("v_bundles", num_bundles, num_steps, 3);
-    Kokkos::View<double**> m_bundles("m_bundles", num_bundles, num_steps);
-    Kokkos::View<double***> new_lam_bundles("new_lam_bundles", num_steps, 7, num_bundles);
+    Kokkos::View<double***, MEMORY_SPACE> r_bundles("r_bundles", num_bundles, num_steps, 3);
+    Kokkos::View<double***, MEMORY_SPACE> v_bundles("v_bundles", num_bundles, num_steps, 3);
+    Kokkos::View<double**, MEMORY_SPACE> m_bundles("m_bundles", num_bundles, num_steps);
+    Kokkos::View<double***, MEMORY_SPACE> new_lam_bundles("new_lam_bundles", num_steps, 7, num_bundles);
     std::vector<double> time(num_steps);
 
     // Fill Kokkos views with initial data
@@ -55,10 +64,10 @@ TEST_CASE("Check propagated values for bundle=32, sigma=0 for single interval [G
     }
 
     // Kokkos view for sigma points
-    Kokkos::View<double****> sigmas_combined("sigmas_combined", num_bundles, num_sigma, nsd, num_steps);
+    Kokkos::View<double****, MEMORY_SPACE> sigmas_combined("sigmas_combined", num_bundles, num_sigma, nsd, num_steps);
 
     // Setup time steps
-    Kokkos::View<int*> time_steps_view("time_steps_view", num_steps);
+    Kokkos::View<double*, MEMORY_SPACE> time_steps_view("time_steps_view", num_steps);
     auto time_steps_host = Kokkos::create_mirror_view(time_steps_view);
     for (int i = 0; i < num_steps; ++i)
         time_steps_host(i) = i;
@@ -93,23 +102,23 @@ TEST_CASE("Check propagated values for bundle=32, sigma=0 for single interval [G
     settings.g0 = 9.81;
     settings.num_subintervals = 10;
     settings.num_eval_per_step = 200;
-    Kokkos::View<double****> trajectories_out("trajectories_out", num_bundles, num_sigma, settings.num_eval_per_step, 8);
+    Kokkos::View<double****, MEMORY_SPACE> trajectories_out("trajectories_out", num_bundles, num_sigma, settings.num_eval_per_step, 8);
 
     // Sample random control inputs
     const int num_random_samples = (num_steps - 1) * (settings.num_subintervals - 1);
     auto random_controls_host = Kokkos::View<double**, Kokkos::HostSpace>("random_controls_host", num_random_samples, 7);
     sample_controls_host_host(num_random_samples, random_controls_host);
 
-    Kokkos::View<double**> random_controls("random_controls", num_random_samples, 7);
+    Kokkos::View<double**, MEMORY_SPACE> random_controls("random_controls", num_random_samples, 7);
     Kokkos::deep_copy(random_controls, random_controls_host);
 
     // Create transform matrix
-    Kokkos::View<double**> transform("transform", 7, 7);
+    Kokkos::View<double**, MEMORY_SPACE> transform("transform", 7, 7);
     compute_transform_matrix(transform);
 
     // Create views for Wm and Wc
-    Kokkos::View<double*> Wm_view("Wm", num_sigma);
-    Kokkos::View<double*> Wc_view("Wc", num_sigma);
+    Kokkos::View<double*, MEMORY_SPACE> Wm_view("Wm", num_sigma);
+    Kokkos::View<double*, MEMORY_SPACE> Wc_view("Wc", num_sigma);
     auto Wm_host = Kokkos::create_mirror_view(Wm_view);
     auto Wc_host = Kokkos::create_mirror_view(Wc_view);
     for (int i = 0; i < num_sigma; ++i) {
