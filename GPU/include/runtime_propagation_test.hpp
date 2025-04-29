@@ -125,8 +125,8 @@ inline double run_propagation_test(int num_steps, const PropagationSettings& set
         Device4D sigmas_combined("sigmas_combined", num_bundles, num_sigma, nsd, 2);
 
         double P_mass = 0.0001;
-        double P_pos_flat[9] = {0.01,0,0,0,0.01,0,0,0,0.01};
-        double P_vel_flat[9] = {0.0001,0,0,0,0.0001,0,0,0,0.0001};
+        double P_pos_flat[9] = {0.01, 0, 0, 0, 0.01, 0, 0, 0, 0.01};
+        double P_vel_flat[9] = {0.0001, 0, 0, 0, 0.0001, 0, 0, 0, 0.0001};
 
         generate_sigma_points_kokkos(
             nsd, alpha, 2.0, 3.0 - nsd,
@@ -136,7 +136,7 @@ inline double run_propagation_test(int num_steps, const PropagationSettings& set
 
         auto random_controls_sub = Kokkos::subview(
             random_controls,
-            Kokkos::pair<int,int>(random_sample_idx, random_sample_idx + num_random_samples_per_interval),
+            Kokkos::pair<int, int>(random_sample_idx, random_sample_idx + num_random_samples_per_interval),
             Kokkos::ALL()
         );
 
