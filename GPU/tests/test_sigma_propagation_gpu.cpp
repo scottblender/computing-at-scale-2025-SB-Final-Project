@@ -113,7 +113,7 @@ TEST_CASE("Check propagated values for bundle=32, sigma=0 for single interval [G
     Kokkos::deep_copy(random_controls, random_controls_host);
 
     // Create transform matrix
-    Kokkos::View<double**, MEMORY_SPACE>& transform("transform", 7, 7);
+    Kokkos::View<double**, MEMORY_SPACE> transform("transform", 7, 7);
     compute_transform_matrix(transform);
 
     // Create views for Wm and Wc

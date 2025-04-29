@@ -86,7 +86,7 @@ inline double run_propagation_test(int num_steps, const PropagationSettings& set
     // Copy data from host to device
     Kokkos::deep_copy(random_controls, random_controls_host);  // Ensure layouts match
     
-    Kokkos::View<double**, MEMORY_SPACE>& transform("transform", nsd, nsd);
+    Kokkos::View<double**, MEMORY_SPACE> transform("transform", nsd, nsd);
     compute_transform_matrix(transform);
 
     int num_storage_steps = settings.num_eval_per_step;
