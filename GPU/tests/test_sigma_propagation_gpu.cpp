@@ -89,7 +89,7 @@ TEST_CASE("Check propagated values for bundle=32, sigma=0 for single interval [G
             P_vel_flat[i*3 + j] = P_vel(i, j);
         }
 
-    // Generate sigma points using Kokkos
+
     generate_sigma_points_kokkos(
         nsd, alpha, beta, kappa,
         P_pos_flat, P_vel_flat, P_mass,

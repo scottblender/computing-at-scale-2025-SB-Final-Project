@@ -1,9 +1,7 @@
 #include "../include/compute_transform_matrix.hpp"
 #include <cmath>
 
-void compute_transform_matrix(
-    Kokkos::View<double**>& transform_out
-) {
+void compute_transform_matrix(Kokkos::View<double**, Kokkos::HostSpace>& transform_out) {
     auto mirror = Kokkos::create_mirror_view(transform_out);
 
     double P[7][7] = {0};

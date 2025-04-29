@@ -58,7 +58,7 @@ void generate_sigma_points_kokkos(
     const double* P_pos_flat,
     const double* P_vel_flat,
     double P_mass,
-    const Kokkos::View<int*>& time_steps,
+    const Kokkos::View<int*, MEMORY_SPACE>& time_steps,
     const View3D& r_bundles,
     const View3D& v_bundles,
     const View2D& m_bundles,
