@@ -29,26 +29,24 @@ void sample_controls_host_host(
 ) {
     #ifdef KOKKOS_ENABLE_CUDA
     // CUDA-specific part: Generate random samples on the device
-    double* d_random_controls;
-    cudaError_t err = cudaMalloc((void**)&d_random_controls, total_samples * 7 * sizeof(double));
-    if (err != cudaSuccess) {
-        std::cerr << "[CUDA ERROR] cudaMalloc failed: " << cudaGetErrorString(err) << std::endl;
-        return;
-    }
+    Kokkos::View<double*, Kokkos::CudaSpace> d_random_controls("d_random_controls", total_samples * 7);
 
     int block_size = 256;
     int num_blocks = (total_samples + block_size - 1) / block_size;
-    generate_random_samples_kernel<<<num_blocks, block_size>>>(total_samples, d_random_controls);
+    generate_random_samples_kernel<<<num_blocks, block_size>>>(total_samples, d_random_controls.data());
 
-    err = cudaGetLastError();
+    // Synchronize the kernel to check for errors
+    cudaError_t err = cudaDeviceSynchronize();
     if (err != cudaSuccess) {
         std::cerr << "[CUDA ERROR] Kernel launch failed: " << cudaGetErrorString(err) << std::endl;
-        cudaFree(d_random_controls);
         return;
     }
 
+    // Kokkos View on host to copy the data
     Kokkos::View<double**, Kokkos::HostSpace> host_random_controls("host_random_controls", total_samples, 7);
-    cudaMemcpy(host_random_controls.data(), d_random_controls, total_samples * 7 * sizeof(double), cudaMemcpyDeviceToHost);
+
+    // Copy data from device to host using Kokkos deep_copy
+    Kokkos::deep_copy(host_random_controls, d_random_controls);
 
     // Copy the data into the output matrix (random_controls_out)
     for (int i = 0; i < total_samples; ++i) {
@@ -56,8 +54,6 @@ void sample_controls_host_host(
             random_controls_out(i, j) = host_random_controls(i, j);
         }
     }
-
-    cudaFree(d_random_controls);  // Free the device memory
 
     #else
     // Serial-only part: Use std::mt19937 for random number generation
