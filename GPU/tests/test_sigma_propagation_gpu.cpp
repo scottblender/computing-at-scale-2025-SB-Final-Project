@@ -135,7 +135,7 @@ TEST_CASE("Check propagated values for bundle=32, sigma=0 for single interval [G
     // Propagate sigma point trajectories
     propagate_sigma_trajectories(
         sigmas_combined, new_lam_bundles,
-        time_steps_view, Wm_view, Wc_view,
+        time_view, Wm_view, Wc_view,
         random_controls, transform, settings,
         trajectories_out
     );
