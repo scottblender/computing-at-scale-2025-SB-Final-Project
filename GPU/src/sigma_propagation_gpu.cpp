@@ -69,7 +69,7 @@ void propagate_sigma_trajectories(
 
     Kokkos::parallel_for(
         "propagate_sigma_trajectories",
-        Kokkos::MDRangePolicy<Kokkos::Rank<2>>({0, 0}, {num_bundles, num_sigma}),
+        Kokkos::MDRangePolicy<Kokkos::DefaultExecutionSpace, Kokkos::Rank<2>>({0, 0}, {num_bundles, num_sigma}),
         KOKKOS_LAMBDA(const int i, const int sigma) {
             int rand_idx = 0;
 
