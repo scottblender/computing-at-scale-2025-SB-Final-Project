@@ -21,7 +21,7 @@
 
 TEST_CASE("Check propagated values for bundle=32, sigma=0 for single interval [GPU-compatible]", "[propagation]") {
     // Load initial CSV data
-    auto initial_data_vec = load_csv("initial_bundle_32_33.csv", 16);
+    auto initial_data_vec = load_csv("initial_bundles_32_33.csv", 16);
     // Filter only bundle 32
     for (const auto& row : initial_data_vec) {
         if (static_cast<int>(row[15]) == 32)  // column 16 = bundle_index

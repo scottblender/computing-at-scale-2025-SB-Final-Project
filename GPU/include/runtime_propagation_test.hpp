@@ -32,7 +32,7 @@ inline double run_propagation_test(int num_steps, const PropagationSettings& set
 
     Kokkos::Timer timer;
 
-    auto all_data = load_csv("initial_bundle_32_33.csv", 17);
+    auto all_data = load_csv("initial_bundles_32_33.csv", 17);
     std::unordered_map<int, std::vector<std::vector<double>>> bundle_rows;
     for (const auto& row : all_data) {
         int b = static_cast<int>(row[16]);
