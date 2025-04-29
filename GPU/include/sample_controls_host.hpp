@@ -1,7 +1,6 @@
 #ifndef SAMPLE_CONTROLS_HOST_HPP
 #define SAMPLE_CONTROLS_HOST_HPP
 
-#include "../include/kokkos_types.hpp"
 #include <Kokkos_Core.hpp>
 
 // Conditionally define memory space based on CUDA availability

@@ -2,18 +2,7 @@
 #define SIGMA_POINTS_KOKKOS_GPU_HPP
 
 #include <Kokkos_Core.hpp>
-
-// Define the memory space based on whether CUDA is enabled or not
-#ifdef KOKKOS_ENABLE_CUDA
-    #define MEMORY_SPACE Kokkos::CudaSpace
-#else
-    #define MEMORY_SPACE Kokkos::HostSpace
-#endif
-
-// Typedefs for convenience with MEMORY_SPACE
-using View3D = Kokkos::View<double***, MEMORY_SPACE>;
-using View2D = Kokkos::View<double**, MEMORY_SPACE>;
-using View4D = Kokkos::View<double****, MEMORY_SPACE>;
+#include "../include/kokkos_types.hpp"
 
 // Function to generate sigma points using Kokkos parallelism
 void generate_sigma_points_kokkos(

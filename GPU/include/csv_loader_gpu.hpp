@@ -2,6 +2,7 @@
 #define CSV_LOADER_GPU_HPP
 
 #include <Kokkos_Core.hpp>
+#include "../include/kokkos_types.hpp"
 #include <vector>
 #include <string>
 #include <fstream>
@@ -9,10 +10,6 @@
 #include <unordered_map>
 #include <stdexcept>
 
-using View4D = Kokkos::View<double****>;
-using View3D = Kokkos::View<double***>;
-using View2D = Kokkos::View<double**>;
-using View1D = Kokkos::View<double*>;
 
 // Load generic CSV to vector<vector<double>> (HOST SIDE)
 inline std::vector<std::vector<double>> load_csv(const std::string& path, int expected_cols) {
