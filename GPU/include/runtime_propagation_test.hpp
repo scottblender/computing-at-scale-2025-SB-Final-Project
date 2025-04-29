@@ -97,12 +97,6 @@ inline double run_propagation_test(int num_steps, const PropagationSettings& set
         Kokkos::deep_copy(random_controls_device, random_controls_host);
     #endif
         
-    // Create a mirror view for the device (if CUDA is enabled)
-    Kokkos::View<double**, MEMORY_SPACE> random_controls_device_mirror("random_controls_device_mirror", total_random_samples, 7);
-
-    // Create the mirror view for device memory, ensuring the memory space matches
-    Kokkos::deep_copy(random_controls_device_mirror, random_controls_device);
-
     // Device view for transformation matrix (transform)
     Kokkos::View<double**, MEMORY_SPACE> transform("transform", nsd, nsd);
     compute_transform_matrix(transform);
@@ -155,18 +149,18 @@ inline double run_propagation_test(int num_steps, const PropagationSettings& set
             time_steps_view, r_bundles, v_bundles, m_bundles, sigmas_combined
         );
 
-        // Subview to get a portion of random_controls for the current interval
-        auto random_controls_sub = Kokkos::subview(
-            random_controls_device_mirror, 
-            Kokkos::make_pair(random_sample_idx, random_sample_idx + num_random_samples_per_interval), 
-            Kokkos::ALL()
-        );        
+        // Generate random controls for the current time step
+        Kokkos::View<double**, MEMORY_SPACE> random_controls_for_step("random_controls_for_step", num_random_samples_per_interval, 7);
+        sample_controls_host_host(num_random_samples_per_interval, random_controls_for_step);  // Generate the controls
+
+        // Copy random controls to device
+        Kokkos::deep_copy(random_controls_device, random_controls_for_step);
 
         // Propagate sigma point trajectories using the random controls and transform
         propagate_sigma_trajectories(
             sigmas_combined, new_lam_bundles,
             time_view, Wm_view, Wc_view,
-            random_controls_sub, transform,
+            random_controls_device, transform,
             settings,
             trajectories_out
         );
