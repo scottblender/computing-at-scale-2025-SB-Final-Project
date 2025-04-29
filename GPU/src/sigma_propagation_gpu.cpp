@@ -3,8 +3,9 @@
 #include "../include/rv2mee_gpu.hpp"
 #include "../include/odefunc_gpu.hpp"
 
+// Kernel to handle the RK45 step for each sigma point and bundle in parallel
 KOKKOS_INLINE_FUNCTION
-void rk45_step(
+void rk45_step_parallel(
     void (*odefunc)(const double*, double*, double, const PropagationSettings&),
     const double* x0, double t0, double t1, int steps,
     const PropagationSettings& settings,
@@ -79,9 +80,8 @@ void propagate_sigma_trajectories(
     int num_sub = settings.num_subintervals;
     int evals = settings.num_eval_per_step / num_sub;
 
-    int rand_idx = 0;
-
-    for (int i = 0; i < num_bundles; ++i) {
+    // Parallel loop across bundles, sigma points, and steps
+    Kokkos::parallel_for("propagate_sigma_trajectories", Kokkos::RangePolicy<>(0, num_bundles), KOKKOS_LAMBDA(const int i) {
         for (int sigma = 0; sigma < num_sigma; ++sigma) {
             for (int j = 0; j < num_steps - 1; ++j) {
                 double r[3], v[3];
@@ -117,7 +117,7 @@ void propagate_sigma_trajectories(
 
                     double history[200][14];
                     double tvals[200];
-                    rk45_step(odefunc, state, t0, t1, evals, settings, history, tvals);
+                    rk45_step_parallel(odefunc, state, t0, t1, evals, settings, history, tvals);
 
                     for (int n = 0; n < evals; ++n) {
                         double rout[3], vout[3];
@@ -136,7 +136,7 @@ void propagate_sigma_trajectories(
                 }
             }
         }
-    }
+    });
 
     Kokkos::deep_copy(trajectories_out, traj_host);
 }
