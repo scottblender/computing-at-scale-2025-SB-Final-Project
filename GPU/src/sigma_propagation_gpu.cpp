@@ -82,6 +82,8 @@ void propagate_sigma_trajectories(
 
     // Parallel loop across bundles, sigma points, and steps
     Kokkos::parallel_for("propagate_sigma_trajectories", Kokkos::RangePolicy<>(0, num_bundles), KOKKOS_LAMBDA(const int i) {
+        int rand_idx = 0;  // Define rand_idx locally within the parallel loop
+        
         for (int sigma = 0; sigma < num_sigma; ++sigma) {
             for (int j = 0; j < num_steps - 1; ++j) {
                 double r[3], v[3];
@@ -100,8 +102,6 @@ void propagate_sigma_trajectories(
                 for (int k = 0; k < 7; ++k) state[7+k] = lam_host(j, k, i);
 
                 int out_idx = 0;
-                int rand_idx = 0;  // Define rand_idx locally within the parallel loop
-
                 for (int sub = 0; sub < num_sub; ++sub) {
                     double dt = (time_host(j+1) - time_host(j)) / num_sub;
                     double t0 = time_host(j) + dt * sub;
