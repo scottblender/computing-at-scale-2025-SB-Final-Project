@@ -80,13 +80,9 @@ inline double run_propagation_test(int num_steps, const PropagationSettings& set
     sample_controls_host_host(total_random_samples, random_controls_host);
 
     // Declare the device view for random_controls (on GPU/Device memory)
-    // Ensure the device view has the same layout as the host view
-    Kokkos::View<double**, Kokkos::CudaSpace> random_controls("random_controls", total_random_samples, 7);
+    Kokkos::View<double**, MEMORY_SPACE> random_controls_device("random_controls_device", total_random_samples, 7);
 
-    // Create a mirror view for device memory from host data
-    Kokkos::View<double**, Kokkos::CudaSpace> random_controls_device("random_controls_device", total_random_samples, 7);
-
-    // Copy data from host to device using a mirror view and deep_copy
+    // Copy data from host to device using deep_copy
     Kokkos::deep_copy(random_controls_device, random_controls_host);
     
     // Device view for transformation matrix (transform)
@@ -143,10 +139,10 @@ inline double run_propagation_test(int num_steps, const PropagationSettings& set
 
         // Subview to get a portion of random_controls for the current interval
         auto random_controls_sub = Kokkos::subview(
-            random_controls,
-            Kokkos::pair<int, int>(random_sample_idx, random_sample_idx + num_random_samples_per_interval),
+            random_controls_device, 
+            Kokkos::make_pair(random_sample_idx, random_sample_idx + num_random_samples_per_interval), 
             Kokkos::ALL()
-        );
+        );        
 
         // Propagate sigma point trajectories using the random controls and transform
         propagate_sigma_trajectories(
