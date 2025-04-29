@@ -4,7 +4,7 @@
 #include <Kokkos_Core.hpp>
 
 void compute_transform_matrix(
-    Kokkos::View<double**>& transform_out
+    const Kokkos::View<double**>& transform_out
 );
 
 #endif // COMPUTE_TRANSFORM_MATRIX_HPP

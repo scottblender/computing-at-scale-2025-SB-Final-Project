@@ -2,7 +2,7 @@
 #include <cmath>
 
 void compute_transform_matrix(
-    Kokkos::View<double**>& transform_out
+    const Kokkos::View<double**>& transform_out
 ) {
     auto mirror = Kokkos::create_mirror_view(transform_out);
 
