@@ -61,57 +61,43 @@ void propagate_sigma_trajectories(
     const PropagationSettings& settings,
     View4D& trajectories_out
 ) {
-    auto sigmas_host = Kokkos::create_mirror_view(sigmas_combined);
-    auto lam_host = Kokkos::create_mirror_view(new_lam_bundles);
-    auto traj_host = Kokkos::create_mirror_view(trajectories_out);
-    auto time_host = Kokkos::create_mirror_view(time);
-    auto rand_host = Kokkos::create_mirror_view(random_controls);
-    auto transform_host = Kokkos::create_mirror_view(transform);
-
-    Kokkos::deep_copy(sigmas_host, sigmas_combined);
-    Kokkos::deep_copy(lam_host, new_lam_bundles);
-    Kokkos::deep_copy(time_host, time);
-    Kokkos::deep_copy(rand_host, random_controls);
-    Kokkos::deep_copy(transform_host, transform);
-
     int num_bundles = sigmas_combined.extent(0);
     int num_sigma = sigmas_combined.extent(1);
     int num_steps = sigmas_combined.extent(3);
     int num_sub = settings.num_subintervals;
     int evals = settings.num_eval_per_step / num_sub;
 
-    // Parallel loop across bundles, sigma points, and steps
     Kokkos::parallel_for("propagate_sigma_trajectories", Kokkos::RangePolicy<>(0, num_bundles), KOKKOS_LAMBDA(const int i) {
-        int rand_idx = 0;  // Define rand_idx locally within the parallel loop
-        
+        int rand_idx = 0;
+
         for (int sigma = 0; sigma < num_sigma; ++sigma) {
             for (int j = 0; j < num_steps - 1; ++j) {
                 double r[3], v[3];
                 for (int k = 0; k < 3; ++k) {
-                    r[k] = sigmas_host(i, sigma, k, j);
-                    v[k] = sigmas_host(i, sigma, k+3, j);
+                    r[k] = sigmas_combined(i, sigma, k, j);
+                    v[k] = sigmas_combined(i, sigma, k+3, j);
                 }
-                double mass = sigmas_host(i, sigma, 6, j);
+                double mass = sigmas_combined(i, sigma, 6, j);
 
                 double mee[6];
-                rv2mee(r, v, settings.mu, mee);
+                rv2mee(r, v, settings.mu, mee); // this should already be device-compatible
 
                 double state[14];
                 for (int k = 0; k < 6; ++k) state[k] = mee[k];
                 state[6] = mass;
-                for (int k = 0; k < 7; ++k) state[7+k] = lam_host(j, k, i);
+                for (int k = 0; k < 7; ++k) state[7+k] = new_lam_bundles(j, k, i);
 
                 int out_idx = 0;
                 for (int sub = 0; sub < num_sub; ++sub) {
-                    double dt = (time_host(j+1) - time_host(j)) / num_sub;
-                    double t0 = time_host(j) + dt * sub;
-                    double t1 = time_host(j) + dt * (sub + 1);
+                    double dt = (time(j+1) - time(j)) / num_sub;
+                    double t0 = time(j) + dt * sub;
+                    double t1 = time(j) + dt * (sub + 1);
 
                     if (sub > 0) {
                         for (int k = 0; k < 7; ++k) {
                             double dz = 0.0;
                             for (int d = 0; d < 7; ++d)
-                                dz += transform_host(d, k) * rand_host(rand_idx, d);
+                                dz += transform(d, k) * random_controls(rand_idx, d);
                             state[7 + k] += dz;
                         }
                         rand_idx++;
@@ -126,11 +112,11 @@ void propagate_sigma_trajectories(
                         mee2rv(&history[n][0], settings.mu, rout, vout);
                         int idx = j * settings.num_eval_per_step + out_idx++;
                         for (int k = 0; k < 3; ++k) {
-                            traj_host(i, sigma, idx, k) = rout[k];
-                            traj_host(i, sigma, idx, k+3) = vout[k];
+                            trajectories_out(i, sigma, idx, k) = rout[k];
+                            trajectories_out(i, sigma, idx, k+3) = vout[k];
                         }
-                        traj_host(i, sigma, idx, 6) = history[n][6];
-                        traj_host(i, sigma, idx, 7) = tvals[n];
+                        trajectories_out(i, sigma, idx, 6) = history[n][6];
+                        trajectories_out(i, sigma, idx, 7) = tvals[n];
                     }
 
                     for (int k = 0; k < 14; ++k)
@@ -139,6 +125,4 @@ void propagate_sigma_trajectories(
             }
         }
     });
-
-    Kokkos::deep_copy(trajectories_out, traj_host);
 }
