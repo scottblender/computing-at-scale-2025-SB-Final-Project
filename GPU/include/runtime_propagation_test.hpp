@@ -19,10 +19,8 @@
 
 // Conditionally define memory space based on CUDA availability
 #ifdef KOKKOS_ENABLE_CUDA
-    // If CUDA is enabled, use CudaSpace
     #define MEMORY_SPACE Kokkos::CudaSpace
 #else
-    // Otherwise, use HostSpace (default for serial runs)
     #define MEMORY_SPACE Kokkos::HostSpace
 #endif
 
@@ -57,6 +55,7 @@ inline double run_propagation_test(int num_steps, const PropagationSettings& set
     Kokkos::View<int*, MEMORY_SPACE> time_steps_view("time_steps_view", 2);  
     Kokkos::View<double*, MEMORY_SPACE> time_view("time_view", 2);
 
+    // Initialize weights Wm and Wc
     Kokkos::View<double*, MEMORY_SPACE> Wm_view("Wm", num_sigma);
     Kokkos::View<double*, MEMORY_SPACE> Wc_view("Wc", num_sigma);
     auto Wm_host = Kokkos::create_mirror_view(Wm_view);
@@ -74,7 +73,7 @@ inline double run_propagation_test(int num_steps, const PropagationSettings& set
     const int num_random_samples_per_interval = num_subintervals - 1;
     const int total_random_samples = (num_steps - 1) * num_random_samples_per_interval;
 
-    // Declare the host view
+    // Declare the host view for random control samples
     Kokkos::View<double**, Kokkos::HostSpace> random_controls_host("random_controls_host", total_random_samples, 7);
 
     // Initialize random_controls_host on the host
@@ -97,6 +96,7 @@ inline double run_propagation_test(int num_steps, const PropagationSettings& set
     int random_sample_idx = 0;
 
     for (int j = 0; j < num_steps - 1; ++j) {
+        // Create mirror views for host to copy data back
         auto r_host = Kokkos::create_mirror_view(r_bundles);
         auto v_host = Kokkos::create_mirror_view(v_bundles);
         auto m_host = Kokkos::create_mirror_view(m_bundles);
@@ -137,14 +137,14 @@ inline double run_propagation_test(int num_steps, const PropagationSettings& set
             time_steps_view, r_bundles, v_bundles, m_bundles, sigmas_combined
         );
 
-        // Subview to get a portion of random_controls
+        // Subview to get a portion of random_controls for the current interval
         auto random_controls_sub = Kokkos::subview(
             random_controls,
             Kokkos::pair<int, int>(random_sample_idx, random_sample_idx + num_random_samples_per_interval),
             Kokkos::ALL()
         );
 
-        // Propagate sigma point trajectories
+        // Propagate sigma point trajectories using the random controls and transform
         propagate_sigma_trajectories(
             sigmas_combined, new_lam_bundles,
             time_view, Wm_view, Wc_view,
