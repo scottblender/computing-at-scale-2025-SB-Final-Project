@@ -2,6 +2,7 @@
 #define SIGMA_PROPAGATION_GPU_HPP
 
 #include <Kokkos_Core.hpp>
+#include "../include/kokkos_types.hpp"
 #include "propagation_settings.hpp"
 
 // Full GPU-compatible propagation function
