@@ -100,6 +100,8 @@ void propagate_sigma_trajectories(
                 for (int k = 0; k < 7; ++k) state[7+k] = lam_host(j, k, i);
 
                 int out_idx = 0;
+                int rand_idx = 0;  // Define rand_idx locally within the parallel loop
+
                 for (int sub = 0; sub < num_sub; ++sub) {
                     double dt = (time_host(j+1) - time_host(j)) / num_sub;
                     double t0 = time_host(j) + dt * sub;
