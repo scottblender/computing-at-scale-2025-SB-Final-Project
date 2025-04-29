@@ -1,5 +1,6 @@
 #include "../include/sample_controls_host.hpp"
 #include <iostream>
+
 #ifdef KOKKOS_ENABLE_CUDA
 #include <curand_kernel.h>
 
@@ -50,8 +51,12 @@ void sample_controls_host_host(
     // Allocate Kokkos view for host memory (to hold data temporarily)
     Kokkos::View<double**, Kokkos::HostSpace> host_random_controls("host_random_controls", total_samples, 7);
 
-    // Copy data from device to host using cudaMemcpy
-    cudaMemcpy(host_random_controls.data(), d_random_controls, total_samples * 7 * sizeof(double), cudaMemcpyDeviceToHost);
+    // Copy data from device to host using Kokkos (not cudaMemcpy)
+    Kokkos::View<double**, Kokkos::CudaSpace> d_random_controls_view("d_random_controls_view", total_samples, 7);
+    Kokkos::deep_copy(d_random_controls_view, d_random_controls);  // Copy device data to Kokkos view
+
+    // Now copy the data from device to host view
+    Kokkos::deep_copy(host_random_controls, d_random_controls_view);
 
     // Copy the data into the output matrix (random_controls_out)
     for (int i = 0; i < total_samples; ++i) {
