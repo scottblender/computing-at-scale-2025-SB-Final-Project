@@ -67,10 +67,12 @@ void propagate_sigma_trajectories(
     int num_sub = settings.num_subintervals;
     int evals = settings.num_eval_per_step / num_sub;
 
-    Kokkos::parallel_for("propagate_sigma_trajectories", Kokkos::RangePolicy<>(0, num_bundles), KOKKOS_LAMBDA(const int i) {
-        int rand_idx = 0;
+    Kokkos::parallel_for(
+        "propagate_sigma_trajectories",
+        Kokkos::MDRangePolicy<Kokkos::Rank<2>>({0, 0}, {num_bundles, num_sigma}),
+        KOKKOS_LAMBDA(const int i, const int sigma) {
+            int rand_idx = 0;
 
-        for (int sigma = 0; sigma < num_sigma; ++sigma) {
             for (int j = 0; j < num_steps - 1; ++j) {
                 double r[3], v[3];
                 for (int k = 0; k < 3; ++k) {
@@ -80,7 +82,7 @@ void propagate_sigma_trajectories(
                 double mass = sigmas_combined(i, sigma, 6, j);
 
                 double mee[6];
-                rv2mee(r, v, settings.mu, mee); // this should already be device-compatible
+                rv2mee(r, v, settings.mu, mee);
 
                 double state[14];
                 for (int k = 0; k < 6; ++k) state[k] = mee[k];
@@ -119,10 +121,11 @@ void propagate_sigma_trajectories(
                         trajectories_out(i, sigma, idx, 7) = tvals[n];
                     }
 
+                    // Update the state to the final output of RK45 for next subinterval
                     for (int k = 0; k < 14; ++k)
                         state[k] = history[evals - 1][k];
                 }
             }
         }
-    });
+    );
 }
