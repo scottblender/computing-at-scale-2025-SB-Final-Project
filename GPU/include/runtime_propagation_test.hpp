@@ -90,7 +90,7 @@ inline double run_propagation_test(int num_steps, const PropagationSettings& set
         
         if (err != cudaSuccess) {
             std::cerr << "[CUDA ERROR] cudaMemcpy failed: " << cudaGetErrorString(err) << std::endl;
-            return;  // Handle error if necessary
+            return -1.0;  // Handle error if necessary
         }
     #else
         // If CUDA is not enabled, use Kokkos' deep_copy for Host to Host (or Host to Device on serial)
