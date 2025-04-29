@@ -64,17 +64,12 @@ inline double run_propagation_test(int num_steps, const PropagationSettings& set
     const int num_random_samples_per_interval = num_subintervals - 1;
     const int total_random_samples = (num_steps - 1) * num_random_samples_per_interval;
 
-    /// Declare the device view
-    Kokkos::View<double**, Kokkos::CudaSpace> random_controls("random_controls", total_random_samples, nsd);
-
-    // Declare the host view
-    Kokkos::View<double**, Kokkos::HostSpace> random_controls_host("random_controls_host", total_random_samples, nsd);
-
-    // Fill host matrix
-    sample_controls_host_host(total_random_samples, random_controls_host);
-
-    // Copy data from host to device
-    Kokkos::deep_copy(random_controls, random_controls_host);  // Ensure layouts match
+    // Corrected: Host + Device random_controls
+    DeviceMatrix random_controls("random_controls", total_random_samples, nsd);
+    HostMatrix random_controls_host("random_controls_host", total_random_samples, nsd);  // <--- DIRECT allocation
+    
+    sample_controls_host_host(total_random_samples, random_controls_host);  // Fill host matrix
+    Kokkos::deep_copy(random_controls, random_controls_host);               // Deep copy to device matrix
     
     Kokkos::View<double**> transform("transform", nsd, nsd);
     compute_transform_matrix(transform);
