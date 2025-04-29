@@ -25,16 +25,27 @@ __global__ void generate_random_samples_kernel(
 // Host function to fill the HostMatrix with random samples
 void sample_controls_host_host(
     int total_samples,
-    View2D& random_controls_out
+    HostMatrix& random_controls_out
 ) {
     #ifdef KOKKOS_ENABLE_CUDA
     // CUDA-specific part: Generate random samples on the device
     double* d_random_controls;
-    cudaMalloc((void**)&d_random_controls, total_samples * 7 * sizeof(double));
+    cudaError_t err = cudaMalloc((void**)&d_random_controls, total_samples * 7 * sizeof(double));
+    if (err != cudaSuccess) {
+        std::cerr << "[CUDA ERROR] cudaMalloc failed: " << cudaGetErrorString(err) << std::endl;
+        return;
+    }
 
     int block_size = 256;
     int num_blocks = (total_samples + block_size - 1) / block_size;
     generate_random_samples_kernel<<<num_blocks, block_size>>>(total_samples, d_random_controls);
+
+    err = cudaGetLastError();
+    if (err != cudaSuccess) {
+        std::cerr << "[CUDA ERROR] Kernel launch failed: " << cudaGetErrorString(err) << std::endl;
+        cudaFree(d_random_controls);
+        return;
+    }
 
     Kokkos::View<double**, Kokkos::HostSpace> host_random_controls("host_random_controls", total_samples, 7);
     cudaMemcpy(host_random_controls.data(), d_random_controls, total_samples * 7 * sizeof(double), cudaMemcpyDeviceToHost);

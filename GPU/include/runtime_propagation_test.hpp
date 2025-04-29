@@ -74,18 +74,19 @@ inline double run_propagation_test(int num_steps, const PropagationSettings& set
     const int num_random_samples_per_interval = num_subintervals - 1;
     const int total_random_samples = (num_steps - 1) * num_random_samples_per_interval;
 
-    // Declare the device view using the conditionally defined MEMORY_SPACE
-    Kokkos::View<double**, MEMORY_SPACE> random_controls("random_controls", total_random_samples, nsd);
-
     // Declare the host view
-    Kokkos::View<double**, MEMORY_SPACE> random_controls_host("random_controls_host", total_random_samples, nsd);
+    Kokkos::View<double**, Kokkos::HostSpace> random_controls_host("random_controls_host", total_random_samples, 7);
 
-    // Fill host matrix
+    // Initialize random_controls_host on the host
     sample_controls_host_host(total_random_samples, random_controls_host);
 
-    // Copy data from host to device
-    Kokkos::deep_copy(random_controls, random_controls_host);  // Ensure layouts match
+    // Declare the device view for random_controls (on GPU/Device memory)
+    Kokkos::View<double**, MEMORY_SPACE> random_controls("random_controls", total_random_samples, 7);
+
+    // Copy data from host to device view
+    Kokkos::deep_copy(random_controls, random_controls_host);
     
+    // Device view for transformation matrix (transform)
     Kokkos::View<double**, MEMORY_SPACE> transform("transform", nsd, nsd);
     compute_transform_matrix(transform);
 
@@ -115,6 +116,7 @@ inline double run_propagation_test(int num_steps, const PropagationSettings& set
             time_host(step) = initial_data(j + step, 0);
         }
 
+        // Copy data from host to device views
         Kokkos::deep_copy(r_bundles, r_host);
         Kokkos::deep_copy(v_bundles, v_host);
         Kokkos::deep_copy(m_bundles, m_host);
@@ -122,6 +124,7 @@ inline double run_propagation_test(int num_steps, const PropagationSettings& set
         Kokkos::deep_copy(time_steps_view, time_steps_host);
         Kokkos::deep_copy(time_view, time_host);
 
+        // Generate sigma points using Kokkos
         Device4D sigmas_combined("sigmas_combined", num_bundles, num_sigma, nsd, 2);
 
         double P_mass = 0.0001;
@@ -134,12 +137,14 @@ inline double run_propagation_test(int num_steps, const PropagationSettings& set
             time_steps_view, r_bundles, v_bundles, m_bundles, sigmas_combined
         );
 
+        // Subview to get a portion of random_controls
         auto random_controls_sub = Kokkos::subview(
             random_controls,
             Kokkos::pair<int, int>(random_sample_idx, random_sample_idx + num_random_samples_per_interval),
             Kokkos::ALL()
         );
 
+        // Propagate sigma point trajectories
         propagate_sigma_trajectories(
             sigmas_combined, new_lam_bundles,
             time_view, Wm_view, Wc_view,
@@ -151,6 +156,7 @@ inline double run_propagation_test(int num_steps, const PropagationSettings& set
         random_sample_idx += num_random_samples_per_interval;
     }
 
+    // Ensure all operations are completed on the device
     Kokkos::fence();
     elapsed = timer.seconds();
 
