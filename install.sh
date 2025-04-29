@@ -102,7 +102,7 @@ cmake --build "$dir/GPU/build" -j8
 # Copy CSV files for tests
 # --------------------------
 echo "[INFO] Copying test CSV files into CPU and GPU build directories..."
-for f in expected_trajectories_bundle_32.csv initial_bundle_32.csv sigma_weights.csv; do
+for f in expected_trajectories_bundle_32.csv initial_bundle_32_33.csv sigma_weights.csv; do
   if [ -f "$f" ]; then
     cp "$f" "$dir/CPU/build/"
     cp "$f" "$dir/GPU/build/"
