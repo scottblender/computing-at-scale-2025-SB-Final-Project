@@ -84,7 +84,7 @@ inline double run_propagation_test(int num_steps, const PropagationSettings& set
 
     // Copy data from host to device using deep_copy
     Kokkos::deep_copy(random_controls_device, random_controls_host);
-    
+        
     // Device view for transformation matrix (transform)
     Kokkos::View<double**, MEMORY_SPACE> transform("transform", nsd, nsd);
     compute_transform_matrix(transform);
