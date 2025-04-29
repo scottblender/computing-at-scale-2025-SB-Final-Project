@@ -1,5 +1,5 @@
 #include "../include/sample_controls_host.hpp"
-
+#include <iostream>
 #ifdef KOKKOS_ENABLE_CUDA
 #include <curand_kernel.h>
 
