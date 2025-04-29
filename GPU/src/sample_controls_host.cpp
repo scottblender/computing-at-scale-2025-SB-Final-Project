@@ -46,11 +46,11 @@ void sample_controls_host_host(
         return;
     }
 
-    // Now copy the device data into a host view
+    // Create a mirror view for device memory
     Kokkos::View<double**, Kokkos::HostSpace> host_random_controls("host_random_controls", total_samples, 7);
 
-    // Copy from device to host using Kokkos::deep_copy
-    Kokkos::deep_copy(host_random_controls, d_random_controls);
+    // Copy from device to host using Kokkos::create_mirror_view_and_copy
+    Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace(), host_random_controls, d_random_controls);
 
     // Copy the data into the output matrix (random_controls_out)
     for (int i = 0; i < total_samples; ++i) {
