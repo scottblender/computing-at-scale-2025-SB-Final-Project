@@ -96,8 +96,13 @@ inline double run_propagation_test(int num_steps, const PropagationSettings& set
         // If CUDA is not enabled, use Kokkos' deep_copy for Host to Host (or Host to Device on serial)
         Kokkos::deep_copy(random_controls_device, random_controls_host);
     #endif
-
         
+    // Create a mirror view for the device (if CUDA is enabled)
+    Kokkos::View<double**, MEMORY_SPACE> random_controls_device_mirror("random_controls_device_mirror", total_random_samples, 7);
+
+    // Create the mirror view for device memory, ensuring the memory space matches
+    Kokkos::deep_copy(random_controls_device_mirror, random_controls_device);
+
     // Device view for transformation matrix (transform)
     Kokkos::View<double**, MEMORY_SPACE> transform("transform", nsd, nsd);
     compute_transform_matrix(transform);
@@ -152,7 +157,7 @@ inline double run_propagation_test(int num_steps, const PropagationSettings& set
 
         // Subview to get a portion of random_controls for the current interval
         auto random_controls_sub = Kokkos::subview(
-            random_controls_device, 
+            random_controls_device_mirror, 
             Kokkos::make_pair(random_sample_idx, random_sample_idx + num_random_samples_per_interval), 
             Kokkos::ALL()
         );        
