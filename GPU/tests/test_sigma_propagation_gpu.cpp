@@ -31,7 +31,10 @@ TEST_CASE("Check propagated values for bundle=32, sigma=0 for single interval [G
     const int num_steps = 2;  // For single interval
     const int num_bundles = 1;
     const int nsd = 7;
-
+    double alpha = 1.7215;
+    double beta = 2.0;
+    double kappa = 3.0 - nsd;
+    
     // Kokkos views for bundle data
     Kokkos::View<double***> r_bundles("r_bundles", num_bundles, num_steps, 3);
     Kokkos::View<double***> v_bundles("v_bundles", num_bundles, num_steps, 3);
@@ -90,7 +93,6 @@ TEST_CASE("Check propagated values for bundle=32, sigma=0 for single interval [G
     settings.g0 = 9.81;
     settings.num_subintervals = 10;
     settings.num_eval_per_step = 200;
-
     Kokkos::View<double****> trajectories_out("trajectories_out", num_bundles, num_sigma, settings.num_eval_per_step, 8);
 
     // Sample random control inputs
@@ -100,6 +102,22 @@ TEST_CASE("Check propagated values for bundle=32, sigma=0 for single interval [G
 
     Kokkos::View<double**> random_controls("random_controls", num_random_samples, 7);
     Kokkos::deep_copy(random_controls, random_controls_host);
+
+    // Create transform matrix
+    Kokkos::View<double**> transform("transform", 7, 7);
+    compute_transform_matrix(transform);
+
+    // Create views for Wm and Wc
+    Kokkos::View<double*> Wm_view("Wm", num_sigma);
+    Kokkos::View<double*> Wc_view("Wc", num_sigma);
+    auto Wm_host = Kokkos::create_mirror_view(Wm_view);
+    auto Wc_host = Kokkos::create_mirror_view(Wc_view);
+    for (int i = 0; i < num_sigma; ++i) {
+        Wm_host(i) = Wm[i];
+        Wc_host(i) = Wc[i];
+    }
+    Kokkos::deep_copy(Wm_view, Wm_host);
+    Kokkos::deep_copy(Wc_view, Wc_host);
 
     // Propagate sigma point trajectories
     propagate_sigma_trajectories(

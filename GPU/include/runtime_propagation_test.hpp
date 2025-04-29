@@ -40,6 +40,7 @@ inline double run_propagation_test(int num_steps, const PropagationSettings& set
         for (int j = 0; j < 16; ++j)
             initial_data(i, j) = initial_data_vec[i][j];
 
+    // Kokkos views for bundle data
     Kokkos::View<double***> r_bundles("r_bundles", num_bundles, 2, 3);
     Kokkos::View<double***> v_bundles("v_bundles", num_bundles, 2, 3);
     Kokkos::View<double**> m_bundles("m_bundles", num_bundles, 2);
@@ -65,14 +66,14 @@ inline double run_propagation_test(int num_steps, const PropagationSettings& set
     const int total_random_samples = (num_steps - 1) * num_random_samples_per_interval;
 
     // Corrected: Host + Device random_controls
-    // Declare the device view
-    Kokkos::View<double**, Kokkos::CudaSpace> random_controls("random_controls", total_random_samples, nsd);
-
-    // Declare the host view
+    // Declare the device view using HostSpace for random_controls_host
     Kokkos::View<double**, Kokkos::HostSpace> random_controls_host("random_controls_host", total_random_samples, nsd);
 
     // Fill host matrix
     sample_controls_host_host(total_random_samples, random_controls_host);
+
+    // Declare the device view for random_controls
+    Kokkos::View<double**, Kokkos::CudaSpace> random_controls("random_controls", total_random_samples, nsd);
 
     // Copy data from host to device
     Kokkos::deep_copy(random_controls, random_controls_host);  // Ensure layouts match
