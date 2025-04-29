@@ -150,11 +150,29 @@ inline double run_propagation_test(int num_steps, const PropagationSettings& set
         );
 
         // Generate random controls for the current time step
-        Kokkos::View<double**, MEMORY_SPACE> random_controls_for_step("random_controls_for_step", num_random_samples_per_interval, 7);
-        sample_controls_host_host(num_random_samples_per_interval, random_controls_for_step);  // Generate the controls
+        // Declare a host view for random controls (on Host)
+        Kokkos::View<double**, Kokkos::HostSpace> random_controls_for_step_host("random_controls_for_step_host", num_random_samples_per_interval, 7);
 
-        // Copy random controls to device
-        Kokkos::deep_copy(random_controls_device, random_controls_for_step);
+        // Generate random controls for the current time step
+        sample_controls_host_host(num_random_samples_per_interval, random_controls_for_step_host);  // Generate the controls
+
+        // Declare the device view for random controls (on GPU/Device memory)
+        Kokkos::View<double**, MEMORY_SPACE> random_controls_for_step_device("random_controls_for_step_device", num_random_samples_per_interval, 7);
+
+        // If CUDA is enabled, manually copy data using cudaMemcpy
+        #ifdef KOKKOS_ENABLE_CUDA
+            // Use raw pointers and cudaMemcpy to copy from host to device
+            double* d_random_controls_device = random_controls_for_step_device.data();  // Get raw pointer to device memory
+            cudaError_t err = cudaMemcpy(d_random_controls_device, random_controls_for_step_host.data(), num_random_samples_per_interval * 7 * sizeof(double), cudaMemcpyHostToDevice);
+            
+            if (err != cudaSuccess) {
+                std::cerr << "[CUDA ERROR] cudaMemcpy failed: " << cudaGetErrorString(err) << std::endl;
+                return -1.0;  // Handle error if necessary
+            }
+        #else
+            // If CUDA is not enabled, use Kokkos' deep_copy for Host to Device (or Host to Host on serial)
+            Kokkos::deep_copy(random_controls_for_step_device, random_controls_for_step_host);
+        #endif
 
         // Propagate sigma point trajectories using the random controls and transform
         propagate_sigma_trajectories(
