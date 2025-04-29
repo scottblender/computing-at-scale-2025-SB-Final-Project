@@ -67,7 +67,7 @@ TEST_CASE("Check propagated values for bundle=32, sigma=0 for single interval [G
     Kokkos::View<double****, MEMORY_SPACE> sigmas_combined("sigmas_combined", num_bundles, num_sigma, nsd, num_steps);
 
     // Setup time steps
-    Kokkos::View<int*, MEMORY_SPACE> time_steps_view("time_steps_view", num_steps);
+    Kokkos::View<int*, MEMORY_SPACE> time_steps_view("time_steps_view", num_steps);  // Kokkos::View<int*> as expected
     auto time_steps_host = Kokkos::create_mirror_view(time_steps_view);
     for (int i = 0; i < num_steps; ++i)
         time_steps_host(i) = i;

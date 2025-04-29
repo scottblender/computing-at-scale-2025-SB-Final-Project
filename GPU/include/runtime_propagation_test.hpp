@@ -50,15 +50,15 @@ inline double run_propagation_test(int num_steps, const PropagationSettings& set
             initial_data(i, j) = initial_data_vec[i][j];
 
     // Kokkos views for bundle data
-    Kokkos::View<double***> r_bundles("r_bundles", num_bundles, 2, 3);
-    Kokkos::View<double***> v_bundles("v_bundles", num_bundles, 2, 3);
-    Kokkos::View<double**> m_bundles("m_bundles", num_bundles, 2);
-    Kokkos::View<double***> new_lam_bundles("new_lam_bundles", 2, nsd, num_bundles);
-    Kokkos::View<double*> time_steps_view("time_steps_view", 2);  // Change from int* to double*
-    Kokkos::View<double*> time_view("time_view", 2);
+    Kokkos::View<double***, MEMORY_SPACE> r_bundles("r_bundles", num_bundles, 2, 3);
+    Kokkos::View<double***, MEMORY_SPACE> v_bundles("v_bundles", num_bundles, 2, 3);
+    Kokkos::View<double**, MEMORY_SPACE> m_bundles("m_bundles", num_bundles, 2);
+    Kokkos::View<double***, MEMORY_SPACE> new_lam_bundles("new_lam_bundles", 2, nsd, num_bundles);
+    Kokkos::View<int*, MEMORY_SPACE> time_steps_view("time_steps_view", 2);  // Changed to int* for consistency with the function signature
+    Kokkos::View<double*, MEMORY_SPACE> time_view("time_view", 2);
 
-    Kokkos::View<double*> Wm_view("Wm", num_sigma);
-    Kokkos::View<double*> Wc_view("Wc", num_sigma);
+    Kokkos::View<double*, MEMORY_SPACE> Wm_view("Wm", num_sigma);
+    Kokkos::View<double*, MEMORY_SPACE> Wc_view("Wc", num_sigma);
     auto Wm_host = Kokkos::create_mirror_view(Wm_view);
     auto Wc_host = Kokkos::create_mirror_view(Wc_view);
 
@@ -86,11 +86,11 @@ inline double run_propagation_test(int num_steps, const PropagationSettings& set
     // Copy data from host to device
     Kokkos::deep_copy(random_controls, random_controls_host);  // Ensure layouts match
     
-    Kokkos::View<double**> transform("transform", nsd, nsd);
+    Kokkos::View<double**, MEMORY_SPACE> transform("transform", nsd, nsd);
     compute_transform_matrix(transform);
 
     int num_storage_steps = settings.num_eval_per_step;
-    Kokkos::View<double****> trajectories_out("trajectories_out", num_bundles, num_sigma, num_storage_steps, 8);
+    Kokkos::View<double****, MEMORY_SPACE> trajectories_out("trajectories_out", num_bundles, num_sigma, num_storage_steps, 8);
 
     Kokkos::Timer timer;
     int random_sample_idx = 0;
