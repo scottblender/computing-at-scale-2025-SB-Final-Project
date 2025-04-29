@@ -13,7 +13,7 @@
 #include "../include/compute_transform_matrix.hpp"
 
 TEST_CASE("Check propagated values for bundle=32, sigma=0 for single interval [GPU-compatible]", "[propagation]") {
-    // Load initial CSV
+    // Load initial CSV data
     auto initial_data_vec = load_csv("initial_bundle_32.csv", 16);
     const int num_rows = static_cast<int>(initial_data_vec.size());
     const int num_cols = static_cast<int>(initial_data_vec[0].size());
@@ -23,21 +23,23 @@ TEST_CASE("Check propagated values for bundle=32, sigma=0 for single interval [G
         for (int j = 0; j < num_cols; ++j)
             initial_data(i, j) = initial_data_vec[i][j];
 
-    // Load weights
+    // Load sigma weights
     std::vector<double> Wm, Wc;
     load_weights("sigma_weights.csv", Wm, Wc);
 
     const int num_sigma = static_cast<int>(Wm.size());
-    const int num_steps = 2;
+    const int num_steps = 2;  // For single interval
     const int num_bundles = 1;
     const int nsd = 7;
 
+    // Kokkos views for bundle data
     Kokkos::View<double***> r_bundles("r_bundles", num_bundles, num_steps, 3);
     Kokkos::View<double***> v_bundles("v_bundles", num_bundles, num_steps, 3);
     Kokkos::View<double**> m_bundles("m_bundles", num_bundles, num_steps);
     Kokkos::View<double***> new_lam_bundles("new_lam_bundles", num_steps, 7, num_bundles);
     std::vector<double> time(num_steps);
 
+    // Fill Kokkos views with initial data
     for (int step = 0; step < num_steps; ++step) {
         for (int k = 0; k < 3; ++k) {
             r_bundles(0, step, k) = initial_data(step, 1 + k);
@@ -49,6 +51,7 @@ TEST_CASE("Check propagated values for bundle=32, sigma=0 for single interval [G
         time[step] = initial_data(step, 0);
     }
 
+    // Kokkos view for sigma points
     Kokkos::View<double****> sigmas_combined("sigmas_combined", num_bundles, num_sigma, nsd, num_steps);
 
     // Setup time steps
@@ -57,8 +60,6 @@ TEST_CASE("Check propagated values for bundle=32, sigma=0 for single interval [G
     for (int i = 0; i < num_steps; ++i)
         time_steps_host(i) = i;
     Kokkos::deep_copy(time_steps_view, time_steps_host);
-
-    double alpha = 1.7215, beta = 2.0, kappa = 3.0 - nsd;
 
     // Covariance matrices
     Eigen::MatrixXd P_pos = 0.01 * Eigen::MatrixXd::Identity(3, 3);
@@ -72,6 +73,7 @@ TEST_CASE("Check propagated values for bundle=32, sigma=0 for single interval [G
             P_vel_flat[i*3 + j] = P_vel(i, j);
         }
 
+    // Generate sigma points using Kokkos
     generate_sigma_points_kokkos(
         nsd, alpha, beta, kappa,
         P_pos_flat, P_vel_flat, P_mass,
@@ -79,6 +81,7 @@ TEST_CASE("Check propagated values for bundle=32, sigma=0 for single interval [G
         sigmas_combined
     );
 
+    // Propagation settings
     PropagationSettings settings;
     settings.mu = 27.899633640439433;
     settings.F = 0.33;
@@ -88,77 +91,45 @@ TEST_CASE("Check propagated values for bundle=32, sigma=0 for single interval [G
     settings.num_subintervals = 10;
     settings.num_eval_per_step = 200;
 
-    int num_storage_steps = settings.num_eval_per_step;
-    Kokkos::View<double****> trajectories_out("trajectories_out", num_bundles, num_sigma, num_storage_steps, 8);
+    Kokkos::View<double****> trajectories_out("trajectories_out", num_bundles, num_sigma, settings.num_eval_per_step, 8);
 
-    // Random controls
+    // Sample random control inputs
     const int num_random_samples = (num_steps - 1) * (settings.num_subintervals - 1);
     auto random_controls_host = Kokkos::View<double**, Kokkos::HostSpace>("random_controls_host", num_random_samples, 7);
     sample_controls_host_host(num_random_samples, random_controls_host);
 
-    // Now mirror to device
     Kokkos::View<double**> random_controls("random_controls", num_random_samples, 7);
     Kokkos::deep_copy(random_controls, random_controls_host);
 
-    // Transform
-    Kokkos::View<double**> transform("transform", 7, 7);
-    compute_transform_matrix(transform);
-
-    // Setup time and weights
-    Kokkos::View<double*> time_view("time_view", num_steps);
-    auto time_host = Kokkos::create_mirror_view(time_view);
-    for (int i = 0; i < num_steps; ++i)
-        time_host(i) = time[i];
-    Kokkos::deep_copy(time_view, time_host);
-
-    Kokkos::View<double*> Wm_view("Wm", num_sigma);
-    Kokkos::View<double*> Wc_view("Wc", num_sigma);
-    auto Wm_host = Kokkos::create_mirror_view(Wm_view);
-    auto Wc_host = Kokkos::create_mirror_view(Wc_view);
-    for (int i = 0; i < num_sigma; ++i) {
-        Wm_host(i) = Wm[i];
-        Wc_host(i) = Wc[i];
-    }
-    Kokkos::deep_copy(Wm_view, Wm_host);
-    Kokkos::deep_copy(Wc_view, Wc_host);
-
-    // Propagate
+    // Propagate sigma point trajectories
     propagate_sigma_trajectories(
         sigmas_combined, new_lam_bundles,
-        time_view, Wm_view, Wc_view,
+        time_steps_view, Wm_view, Wc_view,
         random_controls, transform, settings,
         trajectories_out
     );
 
-    // Copy output back to host
+    // Copy output back to host for verification
     auto host_traj = Kokkos::create_mirror_view(trajectories_out);
     Kokkos::deep_copy(host_traj, trajectories_out);
 
-    // === Load expected CSV
+    // Load expected data for comparison
     auto expected_data_vec = load_csv("expected_trajectories_bundle_32.csv", 10); 
     Eigen::MatrixXd expected_data(expected_data_vec.size(), expected_data_vec[0].size());
     for (int i = 0; i < expected_data.rows(); ++i)
         for (int j = 0; j < expected_data.cols(); ++j)
             expected_data(i, j) = expected_data_vec[i][j];
 
-    // === Check results ===
-    int sigma_to_print = 0;
+    // Check the results
     double tol = 1e-1;
-
-    for (int step = 0; step < num_storage_steps; ++step) {
-        std::cout << "\nStep " << step
-                  << " at time = " << host_traj(0, sigma_to_print, step, 7) << '\n';
-
+    for (int step = 0; step < settings.num_eval_per_step; ++step) {
         for (int d = 0; d < 7; ++d) {
-            double actual = host_traj(0, sigma_to_print, step, d);
+            double actual = host_traj(0, 0, step, d);
             double expected = expected_data(step, d + 2);
-            std::cout << "  Dim[" << d << "] = " << actual << " (expected " << expected << ")\n";
             CHECK_THAT(actual, Catch::Matchers::WithinAbs(expected, tol));
         }
-
-        double actual_time = host_traj(0, sigma_to_print, step, 7);
+        double actual_time = host_traj(0, 0, step, 7);
         double expected_time = expected_data(step, 9);
-        std::cout << "  Time     = " << actual_time << " (expected " << expected_time << ")\n";
         CHECK_THAT(actual_time, Catch::Matchers::WithinAbs(expected_time, tol));
     }
 
