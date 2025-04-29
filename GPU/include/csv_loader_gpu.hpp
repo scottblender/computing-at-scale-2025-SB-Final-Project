@@ -50,14 +50,19 @@ inline void load_weights(const std::string& path, std::vector<double>& Wm, std::
 
 // Load lam control values into a Kokkos View
 inline void load_controls(const std::string& path, View3D& new_lam_bundles, int num_steps, int num_bundles) {
-    auto data = load_csv(path, 17);  // [time, x,y,z,vx,vy,vz,m,lam0..lam6,bundle]
+    auto data = load_csv(path, 17);  // [time, x, y, z, vx, vy, vz, mass, lam0..lam6, bundle]
     Kokkos::resize(new_lam_bundles, num_steps, 7, num_bundles);
-    for (size_t i = 0; i < data.size(); ++i) {
-        int t = static_cast<int>(i);  // assuming sorted by time
-        int b = static_cast<int>(data[i][16]); // bundle index
-        for (int j = 0; j < 7; ++j) {
-            new_lam_bundles(t, j, b) = data[i][9 + j];
-        }
+
+    std::unordered_map<int, int> bundle_time_index;  // map: bundle → current time index
+
+    for (const auto& row : data) {
+        int b = static_cast<int>(row[16]);         // bundle index
+        int t = bundle_time_index[b];              // time index for bundle b
+
+        for (int j = 0; j < 7; ++j)
+            new_lam_bundles(t, j, b) = row[9 + j];  // lam0 starts at column 9
+
+        bundle_time_index[b]++;  // move to next time step for this bundle
     }
 }
 

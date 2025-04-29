@@ -83,15 +83,21 @@ inline void load_weights(const std::string& path, std::vector<double>& Wm, std::
 
 // Load lam control data into Kokkos View (from initial_bundle_32.csv format)
 inline void load_controls(const std::string& path, View3D& new_lam_bundles, int num_steps, int num_bundles) {
-    auto data = load_csv(path, 17);  // [time, x..m, lam0..lam6, bundle_index]
+    auto data = load_csv(path, 17);  // [time, x, y, z, vx, vy, vz, mass, lam0..lam6, bundle_index]
     Kokkos::resize(new_lam_bundles, num_steps, 7, num_bundles);
-    for (int i = 0; i < data.size(); ++i) {
-        int t = i;  // index-based (since time is not strictly integer-indexed)
-        int b = static_cast<int>(data[i][16]);
+
+    // Track how many entries we've seen for each bundle
+    std::unordered_map<int, int> bundle_time_index;
+
+    for (const auto& row : data) {
+        int b = static_cast<int>(row[16]);
+        int t = bundle_time_index[b];  // current time index for bundle b
         for (int j = 0; j < 7; ++j)
-            new_lam_bundles(t, j, b) = data[i][9 + j];  // lam0 starts at index 9
+            new_lam_bundles(t, j, b) = row[9 + j];
+        bundle_time_index[b]++;
     }
 }
+
 
 // Load sigma point state history from expected_trajectories_full.csv
 inline void load_sigma_points(
