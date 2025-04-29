@@ -1,11 +1,31 @@
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/matchers/catch_matchers_floating_point.hpp>
 #include <Kokkos_Core.hpp>
+#include <Eigen/Dense>
+#include <vector>
+#include <string>
+#include <iostream>
+#include <fstream>
+#include <sstream>
+
+#include "../include/csv_loader.hpp"
 #include "../include/sigma_points_kokkos.hpp"
 
 using namespace Catch::Matchers;
 
-TEST_CASE("sigma_points_kokkos generates expected number of sigma points", "[sigma]") {
+TEST_CASE("sigma_points_kokkos generates expected number of sigma points [bundle 32]", "[sigma]") {
+    // === Load CSV ===
+    Eigen::MatrixXd full_data = load_csv_matrix("initial_bundle_32_33.csv");
+
+    // === Filter bundle 32 rows ===
+    std::vector<Eigen::VectorXd> bundle_32_rows;
+    for (int i = 0; i < full_data.rows(); ++i) {
+        if (static_cast<int>(full_data(i, 15)) == 32)
+            bundle_32_rows.push_back(full_data.row(i));
+    }
+
+    REQUIRE(bundle_32_rows.size() >= 3);  // must have at least 3 time steps
+
     const int num_bundles = 1;
     const int num_timesteps = 3;
     const int nsd = 7;
@@ -21,22 +41,19 @@ TEST_CASE("sigma_points_kokkos generates expected number of sigma points", "[sig
     auto m_host = Kokkos::create_mirror_view(m);
 
     for (int t = 0; t < num_timesteps; ++t) {
-        r_host(0, t, 0) = 1000.0 + t * 10;
-        r_host(0, t, 1) = 2000.0 + t * 10;
-        r_host(0, t, 2) = 3000.0 + t * 10;
-
-        v_host(0, t, 0) = 1.0 + 0.1 * t;
-        v_host(0, t, 1) = 2.0 + 0.1 * t;
-        v_host(0, t, 2) = 3.0 + 0.1 * t;
-
-        m_host(0, t) = 500.0 - 0.1 * t;
+        const auto& row = bundle_32_rows[t];
+        for (int j = 0; j < 3; ++j) {
+            r_host(0, t, j) = row(1 + j);  // x, y, z
+            v_host(0, t, j) = row(4 + j);  // vx, vy, vz
+        }
+        m_host(0, t) = row(7);  // mass
     }
 
     Kokkos::deep_copy(r, r_host);
     Kokkos::deep_copy(v, v_host);
     Kokkos::deep_copy(m, m_host);
 
-    std::vector<int> time_steps = {0, 1, 2};
+    std::vector<int> time_steps = {0, 1, 2};  // assume first 3 entries
 
     Eigen::MatrixXd P_pos = 1e-4 * Eigen::MatrixXd::Identity(3, 3);
     Eigen::MatrixXd P_vel = 1e-6 * Eigen::MatrixXd::Identity(3, 3);

@@ -12,7 +12,23 @@
 #include "../include/sigma_points_kokkos.hpp"
 
 TEST_CASE("Print propagated values for bundle=32, sigma=0 for single interval", "[propagation]") {
-    Eigen::MatrixXd initial_data = load_csv_matrix("initial_bundle_32.csv"); // not GPU-compatible
+    auto full_data = load_csv_matrix("initial_bundle_32_33.csv");
+
+    std::vector<Eigen::VectorXd> filtered_rows;
+    for (int i = 0; i < full_data.rows(); ++i) {
+        if (static_cast<int>(full_data(i, 15)) == 32) {  // column 16 = bundle_index
+            filtered_rows.push_back(full_data.row(i));
+        }
+    }
+
+    if (filtered_rows.size() < 2) {
+        throw std::runtime_error("Not enough rows for bundle 32 in initial_bundle_32_33.csv");
+    }
+
+    Eigen::MatrixXd initial_data(filtered_rows.size(), full_data.cols());
+    for (int i = 0; i < filtered_rows.size(); ++i) {
+        initial_data.row(i) = filtered_rows[i];
+    }
 
     std::vector<double> Wm, Wc;
     load_weights("sigma_weights.csv", Wm, Wc);

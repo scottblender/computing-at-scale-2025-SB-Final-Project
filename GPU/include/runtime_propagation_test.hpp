@@ -8,6 +8,7 @@
 #include <vector>
 #include <string>
 #include <cmath>
+#include <unordered_map>
 
 #include "../include/sigma_points_kokkos_gpu.hpp"
 #include "../include/sigma_propagation_gpu.hpp"
@@ -17,7 +18,6 @@
 #include "../include/rv2mee_gpu.hpp"
 #include "../include/kokkos_types.hpp"
 
-// Conditionally define memory space based on CUDA availability
 #ifdef KOKKOS_ENABLE_CUDA
     #define MEMORY_SPACE Kokkos::CudaSpace
 #else
@@ -25,37 +25,68 @@
 #endif
 
 inline double run_propagation_test(int num_steps, const PropagationSettings& settings) {
-    double elapsed = 0.0;
-
-    const int num_bundles = 1;
-    const int nsd = 7;
-    const int num_sigma = 2 * nsd + 1;
-
     if (num_steps < 2) {
         std::cerr << "[ERROR] num_steps must be >= 2!\n";
         return -1.0;
     }
 
-    auto initial_data_vec = load_csv("initial_bundle_32.csv", 16);
-    if (num_steps > static_cast<int>(initial_data_vec.size())) {
-        std::cerr << "[ERROR] Not enough rows in initial_bundle_32.csv for requested num_steps.\n";
-        return -1.0;
+    Kokkos::Timer timer;
+
+    auto all_data = load_csv("initial_bundle_32_33.csv", 17);
+    std::unordered_map<int, std::vector<std::vector<double>>> bundle_rows;
+    for (const auto& row : all_data) {
+        int b = static_cast<int>(row[16]);
+        bundle_rows[b].push_back(row);
     }
 
-    Eigen::MatrixXd initial_data(num_steps, 16);
-    for (int i = 0; i < num_steps; ++i)
-        for (int j = 0; j < 16; ++j)
-            initial_data(i, j) = initial_data_vec[i][j];
+    const int num_bundles = static_cast<int>(bundle_rows.size());
+    const int nsd = 7;
+    const int num_sigma = 2 * nsd + 1;
+    const int num_subintervals = settings.num_subintervals;
+    const int num_random_samples_per_interval = num_subintervals - 1;
+    const int total_random_samples = (num_steps - 1) * num_random_samples_per_interval;
 
-    // Kokkos views for bundle data
-    Kokkos::View<double***, MEMORY_SPACE> r_bundles("r_bundles", num_bundles, 2, 3);
-    Kokkos::View<double***, MEMORY_SPACE> v_bundles("v_bundles", num_bundles, 2, 3);
-    Kokkos::View<double**, MEMORY_SPACE> m_bundles("m_bundles", num_bundles, 2);
-    Kokkos::View<double***, MEMORY_SPACE> new_lam_bundles("new_lam_bundles", 2, nsd, num_bundles);
-    Kokkos::View<int*, MEMORY_SPACE> time_steps_view("time_steps_view", 2);  
-    Kokkos::View<double*, MEMORY_SPACE> time_view("time_view", 2);
+    Kokkos::View<double***, MEMORY_SPACE> r_bundles("r_bundles", num_bundles, num_steps, 3);
+    Kokkos::View<double***, MEMORY_SPACE> v_bundles("v_bundles", num_bundles, num_steps, 3);
+    Kokkos::View<double**, MEMORY_SPACE> m_bundles("m_bundles", num_bundles, num_steps);
+    Kokkos::View<double***, MEMORY_SPACE> new_lam_bundles("new_lam_bundles", num_steps, 7, num_bundles);
+    Kokkos::View<int*, MEMORY_SPACE> time_steps_view("time_steps_view", num_steps);
+    Kokkos::View<double*, MEMORY_SPACE> time_view("time_view", num_steps);
 
-    // Initialize weights Wm and Wc
+    auto r_host = Kokkos::create_mirror_view(r_bundles);
+    auto v_host = Kokkos::create_mirror_view(v_bundles);
+    auto m_host = Kokkos::create_mirror_view(m_bundles);
+    auto lam_host = Kokkos::create_mirror_view(new_lam_bundles);
+    auto time_steps_host = Kokkos::create_mirror_view(time_steps_view);
+    auto time_host = Kokkos::create_mirror_view(time_view);
+
+    int bundle_idx = 0;
+    for (const auto& [bundle_id, rows] : bundle_rows) {
+        if (rows.size() < num_steps) continue;
+        for (int step = 0; step < num_steps; ++step) {
+            const auto& row = rows[step];
+            for (int k = 0; k < 3; ++k) {
+                r_host(bundle_idx, step, k) = row[1 + k];
+                v_host(bundle_idx, step, k) = row[4 + k];
+            }
+            m_host(bundle_idx, step) = row[7];
+            for (int k = 0; k < 7; ++k)
+                lam_host(step, k, bundle_idx) = row[8 + k];
+            if (bundle_idx == 0) {
+                time_host(step) = row[0];
+                time_steps_host(step) = step;
+            }
+        }
+        ++bundle_idx;
+    }
+
+    Kokkos::deep_copy(r_bundles, r_host);
+    Kokkos::deep_copy(v_bundles, v_host);
+    Kokkos::deep_copy(m_bundles, m_host);
+    Kokkos::deep_copy(new_lam_bundles, lam_host);
+    Kokkos::deep_copy(time_steps_view, time_steps_host);
+    Kokkos::deep_copy(time_view, time_host);
+
     Kokkos::View<double*, MEMORY_SPACE> Wm_view("Wm", num_sigma);
     Kokkos::View<double*, MEMORY_SPACE> Wc_view("Wc", num_sigma);
     auto Wm_host = Kokkos::create_mirror_view(Wm_view);
@@ -69,128 +100,47 @@ inline double run_propagation_test(int num_steps, const PropagationSettings& set
     Kokkos::deep_copy(Wm_view, Wm_host);
     Kokkos::deep_copy(Wc_view, Wc_host);
 
-    const int num_subintervals = settings.num_subintervals;
-    const int num_random_samples_per_interval = num_subintervals - 1;
-    const int total_random_samples = (num_steps - 1) * num_random_samples_per_interval;
-
-    // Host view for random controls (on Host)
     Kokkos::View<double**, Kokkos::HostSpace> random_controls_host("random_controls_host", total_random_samples, 7);
-
-    // Initialize random_controls_host on the host
     sample_controls_host_host(total_random_samples, random_controls_host);
 
-    // Declare the device view for random_controls (on GPU/Device memory)
     Kokkos::View<double**, MEMORY_SPACE> random_controls_device("random_controls_device", total_random_samples, 7);
 
-    // If CUDA is enabled, manually copy data using cudaMemcpy
-    #ifdef KOKKOS_ENABLE_CUDA
-        // Use raw pointers and cudaMemcpy to copy from host to device
-        double* d_random_controls_device = random_controls_device.data();  // Get raw pointer to device memory
-        cudaError_t err = cudaMemcpy(d_random_controls_device, random_controls_host.data(), total_random_samples * 7 * sizeof(double), cudaMemcpyHostToDevice);
-        
-        if (err != cudaSuccess) {
-            std::cerr << "[CUDA ERROR] cudaMemcpy failed: " << cudaGetErrorString(err) << std::endl;
-            return -1.0;  // Handle error if necessary
-        }
-    #else
-        // If CUDA is not enabled, use Kokkos' deep_copy for Host to Host (or Host to Device on serial)
-        Kokkos::deep_copy(random_controls_device, random_controls_host);
-    #endif
-        
-    // Device view for transformation matrix (transform)
-    Kokkos::View<double**, MEMORY_SPACE> transform("transform", nsd, nsd);
+#ifdef KOKKOS_ENABLE_CUDA
+    cudaMemcpy(random_controls_device.data(), random_controls_host.data(), total_random_samples * 7 * sizeof(double), cudaMemcpyHostToDevice);
+#else
+    Kokkos::deep_copy(random_controls_device, random_controls_host);
+#endif
+
+    Kokkos::View<double**, MEMORY_SPACE> transform("transform", 7, 7);
     compute_transform_matrix(transform);
 
-    int num_storage_steps = settings.num_eval_per_step;
-    Kokkos::View<double****, MEMORY_SPACE> trajectories_out("trajectories_out", num_bundles, num_sigma, num_storage_steps, 8);
+    Kokkos::View<double****, MEMORY_SPACE> sigmas_combined("sigmas_combined", num_bundles, num_sigma, nsd, num_steps);
 
-    Kokkos::Timer timer;
-    int random_sample_idx = 0;
+    double P_mass = 0.0001;
+    double P_pos_flat[9] = {0.01, 0, 0, 0, 0.01, 0, 0, 0, 0.01};
+    double P_vel_flat[9] = {0.0001, 0, 0, 0, 0.0001, 0, 0, 0, 0.0001};
 
-    for (int j = 0; j < num_steps - 1; ++j) {
-        // Create mirror views for host to copy data back
-        auto r_host = Kokkos::create_mirror_view(r_bundles);
-        auto v_host = Kokkos::create_mirror_view(v_bundles);
-        auto m_host = Kokkos::create_mirror_view(m_bundles);
-        auto lam_host = Kokkos::create_mirror_view(new_lam_bundles);
-        auto time_steps_host = Kokkos::create_mirror_view(time_steps_view);
-        auto time_host = Kokkos::create_mirror_view(time_view);
+    generate_sigma_points_kokkos(
+        nsd, alpha, 2.0, 3.0 - nsd,
+        P_pos_flat, P_vel_flat, P_mass,
+        time_steps_view, r_bundles, v_bundles, m_bundles,
+        sigmas_combined
+    );
 
-        for (int step = 0; step < 2; ++step) {
-            for (int k = 0; k < 3; ++k) {
-                r_host(0, step, k) = initial_data(j + step, 1 + k);
-                v_host(0, step, k) = initial_data(j + step, 4 + k);
-            }
-            m_host(0, step) = initial_data(j + step, 7);
-            for (int k = 0; k < 7; ++k)
-                lam_host(step, k, 0) = initial_data(j + step, 8 + k);
-            time_steps_host(step) = step;
-            time_host(step) = initial_data(j + step, 0);
-        }
+    Kokkos::View<double****, MEMORY_SPACE> trajectories_out("trajectories_out", num_bundles, num_sigma, settings.num_eval_per_step, 8);
 
-        // Copy data from host to device views
-        Kokkos::deep_copy(r_bundles, r_host);
-        Kokkos::deep_copy(v_bundles, v_host);
-        Kokkos::deep_copy(m_bundles, m_host);
-        Kokkos::deep_copy(new_lam_bundles, lam_host);
-        Kokkos::deep_copy(time_steps_view, time_steps_host);
-        Kokkos::deep_copy(time_view, time_host);
+    propagate_sigma_trajectories(
+        sigmas_combined, new_lam_bundles,
+        time_view, Wm_view, Wc_view,
+        random_controls_device, transform,
+        settings,
+        trajectories_out
+    );
 
-        // Generate sigma points using Kokkos
-        Device4D sigmas_combined("sigmas_combined", num_bundles, num_sigma, nsd, 2);
-
-        double P_mass = 0.0001;
-        double P_pos_flat[9] = {0.01, 0, 0, 0, 0.01, 0, 0, 0, 0.01};
-        double P_vel_flat[9] = {0.0001, 0, 0, 0, 0.0001, 0, 0, 0, 0.0001};
-
-        generate_sigma_points_kokkos(
-            nsd, alpha, 2.0, 3.0 - nsd,
-            P_pos_flat, P_vel_flat, P_mass,
-            time_steps_view, r_bundles, v_bundles, m_bundles, sigmas_combined
-        );
-
-        // Generate random controls for the current time step
-        // Declare a host view for random controls (on Host)
-        Kokkos::View<double**, Kokkos::HostSpace> random_controls_for_step_host("random_controls_for_step_host", num_random_samples_per_interval, 7);
-
-        // Generate random controls for the current time step
-        sample_controls_host_host(num_random_samples_per_interval, random_controls_for_step_host);  // Generate the controls
-
-        // Declare the device view for random controls (on GPU/Device memory)
-        Kokkos::View<double**, MEMORY_SPACE> random_controls_for_step_device("random_controls_for_step_device", num_random_samples_per_interval, 7);
-
-        // If CUDA is enabled, manually copy data using cudaMemcpy
-        #ifdef KOKKOS_ENABLE_CUDA
-            // Use raw pointers and cudaMemcpy to copy from host to device
-            double* d_random_controls_device = random_controls_for_step_device.data();  // Get raw pointer to device memory
-            cudaError_t err = cudaMemcpy(d_random_controls_device, random_controls_for_step_host.data(), num_random_samples_per_interval * 7 * sizeof(double), cudaMemcpyHostToDevice);
-            
-            if (err != cudaSuccess) {
-                std::cerr << "[CUDA ERROR] cudaMemcpy failed: " << cudaGetErrorString(err) << std::endl;
-                return -1.0;  // Handle error if necessary
-            }
-        #else
-            // If CUDA is not enabled, use Kokkos' deep_copy for Host to Device (or Host to Host on serial)
-            Kokkos::deep_copy(random_controls_for_step_device, random_controls_for_step_host);
-        #endif
-
-        // Propagate sigma point trajectories using the random controls and transform
-        propagate_sigma_trajectories(
-            sigmas_combined, new_lam_bundles,
-            time_view, Wm_view, Wc_view,
-            random_controls_device, transform,
-            settings,
-            trajectories_out
-        );
-
-        random_sample_idx += num_random_samples_per_interval;
-    }
-
-    // Ensure all operations are completed on the device
     Kokkos::fence();
-    elapsed = timer.seconds();
-
-    return elapsed;
+    double total_elapsed = timer.seconds();
+    std::cout << "[INFO] Total runtime: " << total_elapsed << " seconds\n";
+    return total_elapsed;
 }
 
 #endif // RUNTIME_PROPAGATION_TEST_HPP

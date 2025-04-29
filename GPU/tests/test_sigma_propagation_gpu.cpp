@@ -21,7 +21,13 @@
 
 TEST_CASE("Check propagated values for bundle=32, sigma=0 for single interval [GPU-compatible]", "[propagation]") {
     // Load initial CSV data
-    auto initial_data_vec = load_csv("initial_bundle_32.csv", 16);
+    auto initial_data_vec = load_csv("initial_bundle_32_33.csv", 16);
+    std::vector<std::vector<double>> initial_data_vec;
+    // Filter only bundle 32
+    for (const auto& row : all_data) {
+        if (static_cast<int>(row[15]) == 32)  // column 16 = bundle_index
+            initial_data_vec.push_back(row);
+    }
     const int num_rows = static_cast<int>(initial_data_vec.size());
     const int num_cols = static_cast<int>(initial_data_vec[0].size());
 
