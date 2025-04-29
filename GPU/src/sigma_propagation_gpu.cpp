@@ -8,20 +8,16 @@ void rk45_step(
     void (*odefunc)(const double*, double*, double, const PropagationSettings&),
     const double* x0, double t0, double t1, int steps,
     const PropagationSettings& settings,
-    Kokkos::View<double***, Kokkos::CudaSpace> history,  // Move history to device
-    Kokkos::View<double*, Kokkos::CudaSpace> time_out    // Move time_out to device
+    double history[][14], double* time_out
 ) {
     double h = (t1 - t0) / (steps - 1);
     double x[14];
     for (int i = 0; i < 14; ++i) x[i] = x0[i];
 
     double k1[14], k2[14], k3[14], k4[14], k5[14], k6[14], dx[14];
-
-    // Parallelize this loop over the timesteps (s)
-    Kokkos::parallel_for(Kokkos::TeamPolicy<>(steps, Kokkos::AUTO), KOKKOS_LAMBDA(const Kokkos::TeamPolicy<>::member_type& team) {
-        int s = team.league_rank();
-        for (int i = 0; i < 14; ++i) history(s, i) = x[i];
-        time_out(s) = t0 + s * h;
+    for (int s = 0; s < steps; ++s) {
+        for (int i = 0; i < 14; ++i) history[s][i] = x[i];
+        time_out[s] = t0 + s * h;
 
         odefunc(x, k1, t0, settings);
 
@@ -50,7 +46,7 @@ void rk45_step(
                        - (9.0/50.0)*k5[i] + (2.0/55.0)*k6[i]);
 
         for (int i = 0; i < 14; ++i) x[i] += dx[i];
-    });
+    }
 }
 
 void propagate_sigma_trajectories(
@@ -85,60 +81,62 @@ void propagate_sigma_trajectories(
 
     int rand_idx = 0;
 
-    Kokkos::parallel_for("propagate_sigma_trajectories", Kokkos::MDRangePolicy<Kokkos::Rank<2>>({0, 0}, {num_bundles, num_sigma}), KOKKOS_LAMBDA(const int i, const int sigma) {
-        for (int j = 0; j < num_steps - 1; ++j) {
-            double r[3], v[3];
-            for (int k = 0; k < 3; ++k) {
-                r[k] = sigmas_host(i, sigma, k, j);
-                v[k] = sigmas_host(i, sigma, k+3, j);
-            }
-            double mass = sigmas_host(i, sigma, 6, j);
-
-            double mee[6];
-            rv2mee(r, v, settings.mu, mee);
-
-            double state[14];
-            for (int k = 0; k < 6; ++k) state[k] = mee[k];
-            state[6] = mass;
-            for (int k = 0; k < 7; ++k) state[7+k] = lam_host(j, k, i);
-
-            int out_idx = 0;
-            for (int sub = 0; sub < num_sub; ++sub) {
-                double dt = (time_host(j+1) - time_host(j)) / num_sub;
-                double t0 = time_host(j) + dt * sub;
-                double t1 = time_host(j) + dt * (sub + 1);
-
-                if (sub > 0) {
-                    for (int k = 0; k < 7; ++k) {
-                        double dz = 0.0;
-                        for (int d = 0; d < 7; ++d)
-                            dz += transform_host(d, k) * rand_host(rand_idx, d);
-                        state[7 + k] += dz;
-                    }
-                    rand_idx++;
+    for (int i = 0; i < num_bundles; ++i) {
+        for (int sigma = 0; sigma < num_sigma; ++sigma) {
+            for (int j = 0; j < num_steps - 1; ++j) {
+                double r[3], v[3];
+                for (int k = 0; k < 3; ++k) {
+                    r[k] = sigmas_host(i, sigma, k, j);
+                    v[k] = sigmas_host(i, sigma, k+3, j);
                 }
+                double mass = sigmas_host(i, sigma, 6, j);
 
-                double history[200][14];
-                double tvals[200];
-                rk45_step(odefunc, state, t0, t1, evals, settings, history, tvals);
+                double mee[6];
+                rv2mee(r, v, settings.mu, mee);
 
-                for (int n = 0; n < evals; ++n) {
-                    double rout[3], vout[3];
-                    mee2rv(&history[n][0], settings.mu, rout, vout);
-                    int idx = j * settings.num_eval_per_step + out_idx++;
-                    for (int k = 0; k < 3; ++k) {
-                        traj_host(i, sigma, idx, k) = rout[k];
-                        traj_host(i, sigma, idx, k+3) = vout[k];
+                double state[14];
+                for (int k = 0; k < 6; ++k) state[k] = mee[k];
+                state[6] = mass;
+                for (int k = 0; k < 7; ++k) state[7+k] = lam_host(j, k, i);
+
+                int out_idx = 0;
+                for (int sub = 0; sub < num_sub; ++sub) {
+                    double dt = (time_host(j+1) - time_host(j)) / num_sub;
+                    double t0 = time_host(j) + dt * sub;
+                    double t1 = time_host(j) + dt * (sub + 1);
+
+                    if (sub > 0) {
+                        for (int k = 0; k < 7; ++k) {
+                            double dz = 0.0;
+                            for (int d = 0; d < 7; ++d)
+                                dz += transform_host(d, k) * rand_host(rand_idx, d);
+                            state[7 + k] += dz;
+                        }
+                        rand_idx++;
                     }
-                    traj_host(i, sigma, idx, 6) = history[n][6];
-                    traj_host(i, sigma, idx, 7) = tvals[n];
-                }
 
-                for (int k = 0; k < 14; ++k)
-                    state[k] = history[evals - 1][k];
+                    double history[200][14];
+                    double tvals[200];
+                    rk45_step(odefunc, state, t0, t1, evals, settings, history, tvals);
+
+                    for (int n = 0; n < evals; ++n) {
+                        double rout[3], vout[3];
+                        mee2rv(&history[n][0], settings.mu, rout, vout);
+                        int idx = j * settings.num_eval_per_step + out_idx++;
+                        for (int k = 0; k < 3; ++k) {
+                            traj_host(i, sigma, idx, k) = rout[k];
+                            traj_host(i, sigma, idx, k+3) = vout[k];
+                        }
+                        traj_host(i, sigma, idx, 6) = history[n][6];
+                        traj_host(i, sigma, idx, 7) = tvals[n];
+                    }
+
+                    for (int k = 0; k < 14; ++k)
+                        state[k] = history[evals - 1][k];
+                }
             }
         }
-    });
+    }
 
     Kokkos::deep_copy(trajectories_out, traj_host);
 }
