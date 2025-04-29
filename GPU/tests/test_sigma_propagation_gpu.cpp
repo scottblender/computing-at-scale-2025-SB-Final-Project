@@ -14,10 +14,8 @@
 
 // Conditionally define memory space based on CUDA availability
 #ifdef KOKKOS_ENABLE_CUDA
-    // If CUDA is enabled, use CudaSpace
     #define MEMORY_SPACE Kokkos::CudaSpace
 #else
-    // Otherwise, use HostSpace (default for serial runs)
     #define MEMORY_SPACE Kokkos::HostSpace
 #endif
 
@@ -72,6 +70,12 @@ TEST_CASE("Check propagated values for bundle=32, sigma=0 for single interval [G
     for (int i = 0; i < num_steps; ++i)
         time_steps_host(i) = i;
     Kokkos::deep_copy(time_steps_view, time_steps_host);
+
+    // Setup time view (Kokkos::View<double*> to hold the time values)
+    Kokkos::View<double*, MEMORY_SPACE> time_view("time_view", num_steps);  // Kokkos::View<double*>
+    for (int step = 0; step < num_steps; ++step) {
+        time_view(step) = initial_data(step, 0);  // Time values in the `time_view`
+    }
 
     // Covariance matrices
     Eigen::MatrixXd P_pos = 0.01 * Eigen::MatrixXd::Identity(3, 3);
