@@ -33,31 +33,39 @@ void sample_controls_host_host(
 ) {
     #ifdef KOKKOS_ENABLE_CUDA
     // CUDA-specific part: Generate random samples on the device
-    // Allocate Kokkos view for device memory (device space)
-    Kokkos::View<double**, Kokkos::CudaSpace> d_random_controls("d_random_controls", total_samples, 7);
-
-    int block_size = 256;
-    int num_blocks = (total_samples + block_size - 1) / block_size;
-    generate_random_samples_kernel<<<num_blocks, block_size>>>(total_samples, d_random_controls.data());
-
-    cudaError_t err = cudaGetLastError();
+    // Allocate CUDA memory for the random samples
+    double* d_random_controls;
+    cudaError_t err = cudaMalloc((void**)&d_random_controls, total_samples * 7 * sizeof(double));
     if (err != cudaSuccess) {
-        std::cerr << "[CUDA ERROR] Kernel launch failed: " << cudaGetErrorString(err) << std::endl;
+        std::cerr << "[CUDA ERROR] cudaMalloc failed: " << cudaGetErrorString(err) << std::endl;
         return;
     }
 
-    // Now copy the device data into a host view
+    int block_size = 256;
+    int num_blocks = (total_samples + block_size - 1) / block_size;
+    generate_random_samples_kernel<<<num_blocks, block_size>>>(total_samples, d_random_controls);
+
+    err = cudaGetLastError();
+    if (err != cudaSuccess) {
+        std::cerr << "[CUDA ERROR] Kernel launch failed: " << cudaGetErrorString(err) << std::endl;
+        cudaFree(d_random_controls);
+        return;
+    }
+
+    // Allocate Kokkos view for host memory (to hold data temporarily)
     Kokkos::View<double**, Kokkos::HostSpace> host_random_controls("host_random_controls", total_samples, 7);
 
-    // Copy from device to host using Kokkos::deep_copy
-    Kokkos::deep_copy(host_random_controls, d_random_controls);
+    // Copy from device memory to host memory using cudaMemcpy
+    cudaMemcpy(host_random_controls.data(), d_random_controls, total_samples * 7 * sizeof(double), cudaMemcpyDeviceToHost);
 
-    // Copy the data into the output matrix (random_controls_out)
+    // Now copy the data from the host view into the final output matrix (random_controls_out)
     for (int i = 0; i < total_samples; ++i) {
         for (int j = 0; j < 7; ++j) {
             random_controls_out(i, j) = host_random_controls(i, j);
         }
     }
+
+    cudaFree(d_random_controls);  // Free the device memory
 
     #else
     // Serial-only part: Use std::mt19937 for random number generation

@@ -82,8 +82,21 @@ inline double run_propagation_test(int num_steps, const PropagationSettings& set
     // Declare the device view for random_controls (on GPU/Device memory)
     Kokkos::View<double**, MEMORY_SPACE> random_controls_device("random_controls_device", total_random_samples, 7);
 
-    // Copy data from host to device using deep_copy
-    Kokkos::deep_copy(random_controls_device, random_controls_host);
+    // If CUDA is enabled, manually copy data using cudaMemcpy
+    #ifdef KOKKOS_ENABLE_CUDA
+        // Use raw pointers and cudaMemcpy to copy from host to device
+        double* d_random_controls_device = random_controls_device.data();  // Get raw pointer to device memory
+        cudaError_t err = cudaMemcpy(d_random_controls_device, random_controls_host.data(), total_random_samples * 7 * sizeof(double), cudaMemcpyHostToDevice);
+        
+        if (err != cudaSuccess) {
+            std::cerr << "[CUDA ERROR] cudaMemcpy failed: " << cudaGetErrorString(err) << std::endl;
+            return;  // Handle error if necessary
+        }
+    #else
+        // If CUDA is not enabled, use Kokkos' deep_copy for Host to Host (or Host to Device on serial)
+        Kokkos::deep_copy(random_controls_device, random_controls_host);
+    #endif
+
         
     // Device view for transformation matrix (transform)
     Kokkos::View<double**, MEMORY_SPACE> transform("transform", nsd, nsd);
