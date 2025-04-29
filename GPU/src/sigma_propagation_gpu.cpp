@@ -61,70 +61,75 @@ void propagate_sigma_trajectories(
     const PropagationSettings& settings,
     View4D& trajectories_out
 ) {
-    int num_bundles = sigmas_combined.extent(0);
-    int num_sigma = sigmas_combined.extent(1);
-    int num_steps = sigmas_combined.extent(3);
-    int num_sub = settings.num_subintervals;
-    int evals = settings.num_eval_per_step / num_sub;
+    const int num_bundles = sigmas_combined.extent(0);
+    const int num_sigma   = sigmas_combined.extent(1);
+    const int num_steps   = sigmas_combined.extent(3);
+    const int num_sub     = settings.num_subintervals;
+    const int evals       = settings.num_eval_per_step / num_sub;
+
+    using ExecSpace = Kokkos::DefaultExecutionSpace;
 
     Kokkos::parallel_for(
-        "propagate_sigma_trajectories",
-        Kokkos::MDRangePolicy<Kokkos::DefaultExecutionSpace, Kokkos::Rank<2>>({0, 0}, {num_bundles, num_sigma}),
-        KOKKOS_LAMBDA(const int i, const int sigma) {
-            int rand_idx = 0;
+        "propagate_sigma_trajectories_3D",
+        Kokkos::MDRangePolicy<ExecSpace, Kokkos::Rank<3>>({0, 0, 0}, {num_bundles, num_sigma, num_steps - 1}),
+        KOKKOS_LAMBDA(const int i, const int sigma, const int j) {
+            // Initialize state from sigmas_combined at time[j]
+            double r[3], v[3];
+            for (int k = 0; k < 3; ++k) {
+                r[k] = sigmas_combined(i, sigma, k, j);
+                v[k] = sigmas_combined(i, sigma, k + 3, j);
+            }
+            double mass = sigmas_combined(i, sigma, 6, j);
 
-            for (int j = 0; j < num_steps - 1; ++j) {
-                double r[3], v[3];
-                for (int k = 0; k < 3; ++k) {
-                    r[k] = sigmas_combined(i, sigma, k, j);
-                    v[k] = sigmas_combined(i, sigma, k+3, j);
-                }
-                double mass = sigmas_combined(i, sigma, 6, j);
+            double mee[6];
+            rv2mee(r, v, settings.mu, mee);
 
-                double mee[6];
-                rv2mee(r, v, settings.mu, mee);
+            double state[14];
+            for (int k = 0; k < 6; ++k) state[k] = mee[k];
+            state[6] = mass;
+            for (int k = 0; k < 7; ++k) state[7 + k] = new_lam_bundles(j, k, i);
 
-                double state[14];
-                for (int k = 0; k < 6; ++k) state[k] = mee[k];
-                state[6] = mass;
-                for (int k = 0; k < 7; ++k) state[7+k] = new_lam_bundles(j, k, i);
+            int rand_idx = i * (num_steps - 1) * (num_sigma) * (num_sub - 1) + sigma * (num_steps - 1) * (num_sub - 1) + j * (num_sub - 1);
+            int out_idx = 0;
 
-                int out_idx = 0;
-                for (int sub = 0; sub < num_sub; ++sub) {
-                    double dt = (time(j+1) - time(j)) / num_sub;
-                    double t0 = time(j) + dt * sub;
-                    double t1 = time(j) + dt * (sub + 1);
+            for (int sub = 0; sub < num_sub; ++sub) {
+                const double dt = (time(j + 1) - time(j)) / num_sub;
+                const double t0 = time(j) + dt * sub;
+                const double t1 = time(j) + dt * (sub + 1);
 
-                    if (sub > 0) {
-                        for (int k = 0; k < 7; ++k) {
-                            double dz = 0.0;
-                            for (int d = 0; d < 7; ++d)
-                                dz += transform(d, k) * random_controls(rand_idx, d);
-                            state[7 + k] += dz;
+                // Apply control perturbation after first subinterval
+                if (sub > 0) {
+                    for (int k = 0; k < 7; ++k) {
+                        double dz = 0.0;
+                        for (int d = 0; d < 7; ++d) {
+                            dz += transform(d, k) * random_controls(rand_idx, d);
                         }
-                        rand_idx++;
+                        state[7 + k] += dz;
                     }
-
-                    double history[200][14];
-                    double tvals[200];
-                    rk45_step_parallel(odefunc, state, t0, t1, evals, settings, history, tvals);
-
-                    for (int n = 0; n < evals; ++n) {
-                        double rout[3], vout[3];
-                        mee2rv(&history[n][0], settings.mu, rout, vout);
-                        int idx = j * settings.num_eval_per_step + out_idx++;
-                        for (int k = 0; k < 3; ++k) {
-                            trajectories_out(i, sigma, idx, k) = rout[k];
-                            trajectories_out(i, sigma, idx, k+3) = vout[k];
-                        }
-                        trajectories_out(i, sigma, idx, 6) = history[n][6];
-                        trajectories_out(i, sigma, idx, 7) = tvals[n];
-                    }
-
-                    // Update the state to the final output of RK45 for next subinterval
-                    for (int k = 0; k < 14; ++k)
-                        state[k] = history[evals - 1][k];
+                    rand_idx++;
                 }
+
+                // Propagate using RK45 over this subinterval
+                double history[200][14];
+                double tvals[200];
+                rk45_step_parallel(odefunc, state, t0, t1, evals, settings, history, tvals);
+
+                // Store output trajectory
+                for (int n = 0; n < evals; ++n) {
+                    double rout[3], vout[3];
+                    mee2rv(&history[n][0], settings.mu, rout, vout);
+                    int idx = j * settings.num_eval_per_step + out_idx++;
+                    for (int k = 0; k < 3; ++k) {
+                        trajectories_out(i, sigma, idx, k)     = rout[k];
+                        trajectories_out(i, sigma, idx, k + 3) = vout[k];
+                    }
+                    trajectories_out(i, sigma, idx, 6) = history[n][6];    // mass
+                    trajectories_out(i, sigma, idx, 7) = tvals[n];         // time
+                }
+
+                // Update state for next subinterval
+                for (int k = 0; k < 14; ++k)
+                    state[k] = history[evals - 1][k];
             }
         }
     );
