@@ -15,7 +15,7 @@ using namespace Catch::Matchers;
 
 TEST_CASE("sigma_points_kokkos generates expected number of sigma points [bundle 32]", "[sigma]") {
     // === Load CSV ===
-    Eigen::MatrixXd full_data = load_csv_matrix("initial_bundles_32_33.csv");
+    Eigen::MatrixXd full_data = load_csv_matrix("initial_bundles_all.csv");
 
     // === Filter bundle 32 rows ===
     std::vector<Eigen::VectorXd> bundle_32_rows;

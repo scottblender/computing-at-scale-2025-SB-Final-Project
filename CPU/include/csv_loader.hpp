@@ -83,7 +83,7 @@ inline void load_weights(const std::string& path, std::vector<double>& Wm, std::
 
 // Load lam control data into Kokkos View (from initial_bundle_32.csv format)
 inline void load_controls(const std::string& path, View3D& new_lam_bundles, int num_steps, int num_bundles) {
-    auto data = load_csv(path, 17);  // [time, x, y, z, vx, vy, vz, mass, lam0..lam6, bundle_index]
+    auto data = load_csv(path, 16);  // [time, x, y, z, vx, vy, vz, mass, lam0..lam6, bundle_index]
     Kokkos::resize(new_lam_bundles, num_steps, 7, num_bundles);
 
     // Track how many entries we've seen for each bundle

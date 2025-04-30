@@ -12,7 +12,7 @@
 #include "../include/sigma_points_kokkos.hpp"
 
 TEST_CASE("Print propagated values for bundle=32, sigma=0 for single interval", "[propagation]") {
-    auto full_data = load_csv_matrix("initial_bundles_32_33.csv");
+    auto full_data = load_csv_matrix("initial_bundles_all.csv");
 
     std::vector<Eigen::VectorXd> filtered_rows;
     for (int i = 0; i < full_data.rows(); ++i) {
