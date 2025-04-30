@@ -18,7 +18,6 @@ Clone the repository:
 ```bash
 git clone https://github.com/scottblender/computing-at-scale-2025-SB-Final-Project.git
 cd computing-at-scale-2025-SB-Final-Project
-mkdir build && cd build
 ```
 
 ### 🧵 Serial Backend
