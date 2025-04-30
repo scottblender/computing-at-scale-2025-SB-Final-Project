@@ -83,7 +83,7 @@ CPU/tests/             # CPU-only test harness
 
 ## 📄 Input Files
 
-Use the Python scripts in `scripts/` to generate:
+Use the Python scripts to generate:
 - `initial_bundles_all.csv`
 - `expected_trajectories_bundle_32.csv`
 - `sigma_weights.csv`
