@@ -4,11 +4,12 @@ This project implements parallel sigma point trajectory propagation using [Kokko
 
 ## 🔧 Dependencies
 
-- CMake ≥ 3.18
+- CMake ≥ 3.20.0
 - C++17-compatible compiler (e.g., `g++`, `clang++`, or `nvcc` with CUDA)
 - Python (for CSV generation, optional)
 - [Kokkos](https://github.com/kokkos/kokkos) (header-only or installed)
 - Catch2 (for tests)
+- Eigen
 
 ## 📦 Build Instructions
 
@@ -23,15 +24,13 @@ mkdir build && cd build
 ### 🧵 Serial Backend
 
 ```bash
-cmake .. -DKokkos_ENABLE_SERIAL=ON -DKokkos_ENABLE_OPENMP=OFF -DKokkos_ENABLE_CUDA=OFF
-make -j
+./install.sh RelWithDebInfo SERIAL
 ```
 
 ### 🧵 OpenMP Backend
 
 ```bash
-cmake .. -DKokkos_ENABLE_OPENMP=ON -DKokkos_ENABLE_SERIAL=OFF -DKokkos_ENABLE_CUDA=OFF
-make -j
+./install.sh RelWithDebInfo OPENMP
 ```
 
 Ensure OpenMP is supported by your compiler (`g++ -fopenmp`).
@@ -39,9 +38,7 @@ Ensure OpenMP is supported by your compiler (`g++ -fopenmp`).
 ### 🚀 CUDA Backend
 
 ```bash
-cmake .. -DKokkos_ENABLE_CUDA=ON -DKokkos_ENABLE_SERIAL=OFF -DKokkos_ENABLE_OPENMP=OFF \
-         -DKokkos_ARCH_VOLTA70=ON   # Or your specific GPU architecture
-make -j
+./install.sh RelWithDebInfo CUDA
 ```
 
 > Make sure to replace `Kokkos_ARCH_VOLTA70` with your GPU's architecture (e.g., `AMPERE80`, `KEPLER35`, etc.)
@@ -81,7 +78,6 @@ include/               # All GPU- and CPU-compatible headers
 GPU/tests/             # Catch2-based GPU tests
 GPU/src/               # GPU-specific benchmarking and RK kernels
 CPU/tests/             # CPU-only test harness
-scripts/               # Python scripts to generate CSV input data
 ```
 
 ---
@@ -89,11 +85,11 @@ scripts/               # Python scripts to generate CSV input data
 ## 📄 Input Files
 
 Use the Python scripts in `scripts/` to generate:
-- `initial_bundle_32.csv`
+- `initial_bundles_all.csv`
 - `expected_trajectories_bundle_32.csv`
 - `sigma_weights.csv`
 
-These are used in `test_sigma_propagation_gpu.cpp` to validate correctness.
+These are used in test scripts and benchmarks to validate correctness and provide initial data for propagation.
 
 ---
 
