@@ -49,12 +49,14 @@ Ensure OpenMP is supported by your compiler (`g++ -fopenmp`).
 To run GPU-compatible or serial propagation tests:
 
 ```bash
+CD GPU/build
 ./test_sigma_propagation_gpu
 ```
 
 To run CPU-only tests:
 
 ```bash
+cd CPU/build
 ./test_sigma_propagation_cpu
 ```
 
@@ -65,7 +67,8 @@ To run CPU-only tests:
 Run benchmark executable to measure performance:
 
 ```bash
-./runtime_vs_timesteps_benchmark
+cd GPU/build
+./runtime_vs_timesteps_benchmarkm --benchmark
 ```
 
 ---
