@@ -49,7 +49,7 @@ Ensure OpenMP is supported by your compiler (`g++ -fopenmp`).
 To run GPU-compatible or serial propagation tests:
 
 ```bash
-CD GPU/build
+cd GPU/build
 ./test_sigma_propagation_gpu
 ```
 
